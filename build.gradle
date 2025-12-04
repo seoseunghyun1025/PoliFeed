@@ -34,8 +34,9 @@ dependencies {
     implementation 'org.apache.pdfbox:pdfbox:2.0.29'
     implementation 'kr.dogfoot:hwplib:1.0.4'
     implementation 'kr.dogfoot:hwpxlib:1.0.1'
-    //.env 파일 읽기
-    implementation 'me.paulschwarz:spring-dotenv:4.0.0'
+
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+    implementation 'nz.net.ultraq.thymeleaf:thymeleaf-layout-dialect'
 
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-client'

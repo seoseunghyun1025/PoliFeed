@@ -1,14 +1,28 @@
 spring:
+  config:
+    import: optional:file:.env[.properties]
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: ${DB_URL}
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
   # ??? DTO ??? ??? ??? ?? ??? ?? ?? ? ???? ??
   # type-aliases-package: com.polifeed.polifeed.domain
+  configuration:
+    map-underscore-to-camel-case: true
 
 server:
   port: 8080

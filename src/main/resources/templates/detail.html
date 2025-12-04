@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>내용 수정 및 재분석</title> <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        textarea { resize: none; }
+    </style>
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">PoliFeed</a>
+        <div class="d-flex" th:if="${userName != null}">
+            <span class="navbar-text text-white me-3">
+                반갑습니다, <strong th:text="${userName}">User</strong>님!
+            </span>
+            <a href="/logout" class="btn btn-sm btn-outline-light">로그아웃</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-warning text-dark fw-bold">✍️ 내용 수정하기</div> <div class="card-body">
+
+                <form th:action="@{/analyze/update}" method="post" onsubmit="showLoading()">
+
+                    <input type="hidden" name="id" th:value="${dto.id}">
+
+                    <div class="mb-3">
+                        <label for="topic" class="form-label fw-bold">📌 주제</label>
+                        <label for="topic" class="form-label fw-bold">🏢 기업 제시 문항</label>
+                        <input type="text" id="topic" name="topic" class="form-control"
+                               th:value="${dto.topic}" required>
+                    </div>
+
+                    <textarea name="resumeText" class="form-control mb-3" rows="15"
+                              th:text="${dto.originalText}"></textarea>
+
+                    <button type="submit" id="submitBtn" class="btn btn-warning w-100 fw-bold">
+                        수정하고 다시 피드백 받기 🔄
+                    </button>
+                </form>
+            </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card shadow-sm h-100 border-info">
+                <div class="card-header bg-info text-white fw-bold">🤖 AI 멘토의 피드백 (최신)</div>
+                <div class="card-body bg-white position-relative">
+
+                    <div id="loading-spinner" class="text-center mt-5" style="display: none;">
+                        <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-3 fw-bold text-secondary">수정된 내용을 바탕으로<br>다시 분석 중입니다... 🧐</p>
+                    </div>
+
+                    <div>
+                        <pre id="feedback-content" th:text="${dto.feedbackText}"
+                             style="white-space: pre-wrap; font-family: inherit; max-height: 500px; overflow-y: auto;"></pre>
+
+                        <hr>
+
+                        <div class="text-end">
+                            <button onclick="downloadFeedback()" class="btn btn-outline-dark btn-sm">
+                                📥 피드백 다운로드 (.txt)
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3 mb-5">
+        <a href="/mypage" class="btn btn-secondary">⬅️ 목록으로 돌아가기</a>
+    </div>
+</div>
+
+<script>
+    function showLoading() {
+        document.getElementById('loading-spinner').style.display = 'block';
+    }
+
+    function downloadFeedback() {
+        const content = document.getElementById('feedback-content').innerText;
+        if (!content) { alert("다운로드할 내용이 없습니다."); return; }
+
+        const element = document.createElement('a');
+        const file = new Blob([content], {type: 'text/plain'});
+        element.href = URL.createObjectURL(file);
+        element.download = "PoliFeed_Updated_Feedback.txt"; // 파일명 살짝 변경
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+    }
+</script>
+
+</body>
+</html>

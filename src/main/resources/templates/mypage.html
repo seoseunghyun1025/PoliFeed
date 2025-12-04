@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>마이페이지</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">PoliFeed</a>
+
+        <div class="d-flex align-items-center" th:if="${userName != null}">
+            <span class="navbar-text text-white me-3">
+                반갑습니다, <strong th:text="${userName}">User</strong>님!
+            </span>
+
+            <a href="/" class="btn btn-sm btn-outline-warning me-2">
+                🏠 새 글 작성
+            </a>
+
+            <a href="/logout" class="btn btn-sm btn-outline-light">로그아웃</a>
+        </div>
+    </div>
+</nav>
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h2 class="mb-4 fw-bold">📂 내 포트폴리오 보관함</h2>
+
+            <div class="list-group shadow-sm">
+                <a th:each="item : ${list}"
+                   th:href="@{/mypage/{id}(id=${item.id})}"
+                   class="list-group-item list-group-item-action p-4" aria-current="true">
+
+                    <div class="d-flex w-100 justify-content-between mb-2">
+                        <h5 class="mb-1 fw-bold text-primary" th:text="${item.topic ?: '주제 없음'}">주제</h5>
+                        <small class="text-muted" th:text="${#temporals.format(item.createdAt, 'yyyy-MM-dd HH:mm')}">날짜</small>
+                    </div>
+
+                    <p class="mb-1 text-secondary"
+                       th:text="${item.originalText != null} ? ${#strings.abbreviate(item.originalText, 100)} : '내용 없음'">
+                        내용 미리보기...
+                    </p>
+                </a>
+
+                <div th:if="${#lists.isEmpty(list)}" class="text-center p-5 bg-white">
+                    <p class="text-muted">아직 작성된 피드백이 없습니다.</p>
+                    <a href="/" class="btn btn-primary">첫 번째 피드백 받으러 가기 🚀</a>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
