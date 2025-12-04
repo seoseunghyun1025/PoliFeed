@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  # ??? DTO ??? ??? ??? ?? ??? ?? ?? ? ???? ??
+  # type-aliases-package: com.polifeed.polifeed.domain
+
+server:
+  port: 8080
