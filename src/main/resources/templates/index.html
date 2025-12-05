@@ -4,8 +4,33 @@
     <meta charset="UTF-8">
     <title>PoliFeed</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+
     <style>
         textarea { resize: none; }
+        /* 마크다운 스타일링 */
+        #feedback-display {
+            font-size: 0.95rem;
+            line-height: 1.7;
+        }
+        #feedback-display h1, #feedback-display h2, #feedback-display h3 {
+            font-weight: 700;
+            margin-top: 1.2rem;
+            margin-bottom: 0.8rem;
+            color: #2c3e50;
+        }
+        #feedback-display code {
+            background-color: #f8f9fa;
+            color: #e83e8c;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        #feedback-display blockquote {
+            border-left: 4px solid #17a2b8;
+            padding-left: 1rem;
+            color: #6c757d;
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -17,9 +42,7 @@
             <span class="navbar-text text-white me-3">
                 반갑습니다, <strong th:text="${userName}">User</strong>님!
             </span>
-            <a href="/mypage" class="btn btn-sm btn-outline-warning me-2">
-                📂 보관함 가기
-            </a>
+            <a href="/mypage" class="btn btn-sm btn-outline-warning me-2">📂 보관함 가기</a>
             <a href="/logout" class="btn btn-sm btn-outline-light">로그아웃</a>
         </div>
     </div>
@@ -40,14 +63,12 @@
                     <div class="card-body">
                         <form th:action="@{/analyze}" method="post" onsubmit="showLoading()">
                             <div class="mb-3">
-                                <label for="topic" class="form-label fw-bold">📌 주제 (예: 지원동기, 성격의 장단점)</label>
+                                <label for="topic" class="form-label fw-bold">📌 주제</label>
                                 <input type="text" id="topic" name="topic" class="form-control"
-                                       placeholder="예: 본인의 성장과정을 구체적으로 기술하시오 (500자 이내)"
-                                       th:value="${topic}" required>
+                                       placeholder="예: 성장과정 (500자)" th:value="${topic}" required>
                             </div>
                             <textarea name="resumeText" class="form-control mb-3" rows="15"
-                                      placeholder="여기에 내용을 붙여넣으세요..."
-                                      th:text="${originalText}"></textarea>
+                                      placeholder="내용을 입력하세요..." th:text="${originalText}"></textarea>
                             <button type="submit" id="submitBtn" class="btn btn-primary w-100">AI 피드백 받기 ✨</button>
                         </form>
                     </div>
@@ -64,20 +85,21 @@
                         </div>
 
                         <div id="loading-spinner" class="text-center mt-5" style="display: none;">
-                            <div class="spinner-border text-info" role="status" style="width: 3rem; height: 3rem;">
+                            <div class="spinner-border text-info" role="status">
                                 <span class="visually-hidden">Loading...</span>
                             </div>
-                            <p class="mt-3 fw-bold text-secondary">AI가 꼼꼼히 분석 중입니다...<br>잠시만 기다려주세요 🧐</p>
+                            <p class="mt-3 fw-bold text-secondary">AI가 분석 중입니다... 🧐</p>
                         </div>
 
                         <div th:if="${feedback != null}">
-                            <pre id="feedback-content" th:text="${feedback}" style="white-space: pre-wrap; font-family: inherit; max-height: 500px; overflow-y: auto;"></pre>
+                            <textarea id="raw-markdown" style="display:none;" th:text="${feedback}"></textarea>
+
+                            <div id="feedback-display" class="border rounded p-3 bg-light" style="max-height: 500px; overflow-y: auto;"></div>
 
                             <hr>
-
                             <div class="text-end">
                                 <button onclick="downloadFeedback()" class="btn btn-outline-dark btn-sm">
-                                    📥 피드백 다운로드 (.txt)
+                                    📥 다운로드 (.md)
                                 </button>
                             </div>
                         </div>
@@ -90,37 +112,43 @@
 </div>
 
 <script>
-    // 1. 분석 버튼 누르면 로딩 화면 보여주기
+    // 마크다운 변환 로직
+    document.addEventListener("DOMContentLoaded", function() {
+        const rawTextArea = document.getElementById('raw-markdown');
+        const displayArea = document.getElementById('feedback-display');
+
+        if (rawTextArea && displayArea) {
+            const rawText = rawTextArea.value;
+            // 마크다운을 HTML로 변환 후 안전하게 삽입
+            displayArea.innerHTML = DOMPurify.sanitize(marked.parse(rawText));
+        }
+    });
+
     function showLoading() {
-        // 기존 안내 문구 숨기기 (있다면)
         const defaultMsg = document.getElementById('default-msg');
         if (defaultMsg) defaultMsg.style.display = 'none';
 
-        // 로딩 스피너 보이기
-        document.getElementById('loading-spinner').style.display = 'block';
+        // 결과 화면이 있다면 숨김 (재요청 시 깔끔하게 보이기 위해)
+        const feedbackDisplay = document.getElementById('feedback-display');
+        if (feedbackDisplay) feedbackDisplay.style.display = 'none';
 
-        // 버튼 중복 클릭 방지 (선택 사항)
-        // document.getElementById('submitBtn').disabled = true;
-        // document.getElementById('submitBtn').innerText = '분석 중...';
+        document.getElementById('loading-spinner').style.display = 'block';
     }
 
-    // 2. 피드백 내용 다운로드 기능
     function downloadFeedback() {
-        const content = document.getElementById('feedback-content').innerText;
+        // 다운로드는 '원본 마크다운' 텍스트를 사용
+        const content = document.getElementById('raw-markdown').value;
 
         if (!content) {
             alert("다운로드할 내용이 없습니다.");
             return;
         }
 
-        // 텍스트 파일 생성
         const element = document.createElement('a');
         const file = new Blob([content], {type: 'text/plain'});
-
         element.href = URL.createObjectURL(file);
-        element.download = "PoliFeed_AI_Feedback.txt"; // 저장될 파일 이름
-
-        document.body.appendChild(element); // 파이어폭스 호환성 위해 추가
+        element.download = "PoliFeed_AI_Feedback.md"; // 마크다운 파일로 저장
+        document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
     }
