@@ -8,8 +8,8 @@ import java.util.List;
 public interface FeedbackMapper {
 
     // 1. 저장 (INSERT) - topic 추가
-    @Insert("INSERT INTO feedback_log (user_id, topic, original_text, feedback_text, created_at) " +
-            "VALUES (#{userId}, #{topic}, #{originalText}, #{feedbackText}, NOW())")
+    @Insert("INSERT INTO feedback_log (user_id, topic, original_text, feedback_text, persona,created_at) " +
+            "VALUES (#{userId}, #{topic}, #{originalText}, #{feedbackText}, #{persona}, NOW())")
     void saveFeedback(FeedbackDTO feedbackDTO);
 
     // 2. 목록 조회 (SELECT List) - 마이페이지용
@@ -25,6 +25,7 @@ public interface FeedbackMapper {
             "SET topic = #{topic}, " +
             "    original_text = #{originalText}, " +
             "    feedback_text = #{feedbackText}, " +
+            "    persona = #{persona}, " +
             "    created_at = NOW() " + // 수정일자로 갱신 (선택사항)
             "WHERE id = #{id}")
     void updateFeedback(FeedbackDTO feedbackDTO);

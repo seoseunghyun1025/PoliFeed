@@ -62,6 +62,17 @@
                     <div class="card-header bg-white fw-bold">📝 나의 이력서/자소서</div>
                     <div class="card-body">
                         <form th:action="@{/analyze}" method="post" onsubmit="showLoading()">
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">🎭 면접관 성향 선택 (Persona)</label>
+                                <select name="persona" class="form-select">
+                                    <option value="strict">🔥 깐깐한 대기업 인사팀장 (매운맛)</option>
+                                    <option value="friendly" selected>🍀 친절한 스타트업 CTO (순한맛)</option>
+                                    <option value="consultant">👨‍🏫 정석 취업 컨설턴트 (보통맛)</option>
+                                </select>
+                                <div class="form-text">선택한 성향에 따라 AI의 피드백 말투와 관점이 달라집니다.</div>
+                            </div>
+
                             <div class="mb-3">
                                 <label for="topic" class="form-label fw-bold">📌 주제</label>
                                 <input type="text" id="topic" name="topic" class="form-control"

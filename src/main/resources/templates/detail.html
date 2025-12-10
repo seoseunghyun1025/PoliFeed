@@ -93,6 +93,15 @@
                         <input type="hidden" name="id" th:value="${dto.id}">
 
                         <div class="mb-3">
+                            <label class="form-label fw-bold">🎭 면접관 성향 변경</label>
+                            <select name="persona" class="form-select">
+                                <option value="strict" th:selected="${dto.persona == 'strict'}">🔥 깐깐한 대기업 인사팀장</option>
+                                <option value="friendly" th:selected="${dto.persona == 'friendly'}">🍀 친절한 스타트업 CTO</option>
+                                <option value="consultant" th:selected="${dto.persona == 'consultant'}">👨‍🏫 정석 취업 컨설턴트</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="topic" class="form-label fw-bold">📌 주제 (기업 문항)</label>
                             <input type="text" id="topic" name="topic" class="form-control"
                                    th:value="${dto.topic}" required>

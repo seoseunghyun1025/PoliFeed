@@ -35,6 +35,7 @@ public class MainController {
     @PostMapping("/analyze")
     public String analyze(@RequestParam("topic") String topic, // 주제 받기
                           @RequestParam("resumeText") String text,
+                          @RequestParam("persona") String persona,
                           @AuthenticationPrincipal OAuth2User oauth2User,
                           Model model) {
 
@@ -42,10 +43,10 @@ public class MainController {
         String userId = oauth2User.getAttribute("name");
 
         // AI 분석
-        String feedback = geminiService.getFeedback(topic, text);
+        String feedback = geminiService.getFeedback(topic, text, persona);
 
         // DB 저장 (INSERT)
-        FeedbackDTO dto = new FeedbackDTO(null, userId, topic, text, feedback, null);
+        FeedbackDTO dto = new FeedbackDTO(null, userId, topic, text, feedback,null, persona);
         feedbackMapper.saveFeedback(dto);
 
         // 결과 화면으로
@@ -87,14 +88,15 @@ public class MainController {
     public String updateAnalyze(@RequestParam("id") Long id,
                                 @RequestParam("topic") String topic,
                                 @RequestParam("resumeText") String text,
+                                @RequestParam("persona") String persona,
                                 @AuthenticationPrincipal OAuth2User oauth2User,
                                 Model model) {
 
         // AI 다시 분석
-        String newFeedback = geminiService.getFeedback(topic, text);
+        String newFeedback = geminiService.getFeedback(topic, text, persona);
 
         // DB 업데이트 (UPDATE)
-        FeedbackDTO dto = new FeedbackDTO(id, oauth2User.getAttribute("name"), topic, text, newFeedback, null);
+        FeedbackDTO dto = new FeedbackDTO(id, oauth2User.getAttribute("name"), topic, text, newFeedback, null, persona);
         feedbackMapper.updateFeedback(dto);
 
         // 다시 상세 화면으로 (변경된 내용 보여주기)

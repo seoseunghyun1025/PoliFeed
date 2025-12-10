@@ -15,4 +15,5 @@ public class FeedbackDTO {
     private String originalText;
     private String feedbackText;
     private LocalDateTime createdAt;
+    private String persona;
 }
