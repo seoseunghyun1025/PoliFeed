@@ -104,6 +104,12 @@
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label fw-bold">🏢 채용 공고 (JD)</label>
+                            <textarea name="jdText" class="form-control" rows="4"
+                                      placeholder="채용 공고 내용 입력" th:text="${dto.jdText}"></textarea>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="topic" class="form-label fw-bold">📌 주제 (기업 문항)</label>
                             <input type="text" id="topic" name="topic" class="form-control"
                                    th:value="${dto.topic}" required>

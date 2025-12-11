@@ -18,7 +18,7 @@ public class GeminiService {
 
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public String getFeedback(String topic, String resumeText, String persona) {
+    public String getFeedback(String topic, String resumeText, String persona, String jdText) {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
 
         String personaInstruction = "";
@@ -46,17 +46,44 @@ public class GeminiService {
                 "JSON 앞뒤에는 파싱을 위해 '[[JSON_START]]' 와 '[[JSON_END]]' 태그를 반드시 붙여주세요.\n" +
                 "예시: [[JSON_START]]{\"logic\": 8, \"jobFit\": 7, \"sincerity\": 9, \"creativity\": 6, \"readability\": 8}[[JSON_END]]";
 
+        String analysisTitle;
+        String analysisInstruction;
+
+        String jdPrompt = "";
+        if (jdText != null && !jdText.isBlank()) {
+            jdPrompt = "\n\n🚨 **[매우 중요] 채용 공고(JD) 매칭 및 약점 보완 전략** 🚨\n" +
+                    "지원자는 아래 **채용 공고**를 보고 지원했습니다.\n" +
+                    "--------------------------------------------------\n" +
+                    jdText + "\n" +
+                    "--------------------------------------------------\n" +
+                    "분석 시 다음 **3단계 전략**을 수행하세요:\n" +
+                    "1. **요건 분류**: 공고 내용을 '필수 요건(Must)'과 '우대 사항(Preferred)'으로 구분.\n" +
+                    "2. **Gap 분석**: 지원자 답변에서 누락된 키워드를 찾으세요.\n" +
+                    "3. **대체 전략 제시 (가장 중요)**:\n" +
+                    "   - **우대 사항**이 없을 때: '관심과 학습 의지'를 어필하는 문구 제안.\n" +
+                    "   - **필수 요건**이 없을 때: 탈락이라고 단정 짓지 말고, **'유사 경험(기초 지식, 다른 언어/툴 사용 경험)'을 들어 '핵심 원리는 이해하고 있어 빠르게 적응 가능하다'는 논리**를 만들도록 조언하세요.";
+
+            analysisTitle = "채용 공고(JD) 적합성 및 합격 전략";
+            analysisInstruction = "단순히 '없다'고 지적하는 것을 넘어, **합격을 위한 디펜스(방어) 논리**를 만들어줘.\n" +
+                    "   - **필수 요건 미충족 시**: 치명적일 수 있음을 경고하되, **'제가 A는 안 써봤지만, B를 써봤기에 A도 금방 배웁니다'** 식의 구체적인 **대체 설득 논리**를 문장으로 알려줘.\n" +
+                    "   - **우대 사항 미충족 시**: 없는 것을 솔직히 인정하되, 입사 후 기여할 수 있는 **잠재력과 태도**를 강조하는 문장 추천.";
+        } else {
+            // JD 없을 때
+            analysisTitle = "질문 적합성 체크 (가장 중요)";
+            analysisInstruction = "지원자가 기업의 질문 의도를 정확히 파악했는지, 아니면 동문서답을 하고 있는지 냉철하게 평가해줘.";
+        }
+
         String finalPrompt =
                 "역할 설정: " + personaInstruction + "\n\n" +
-                        "기업에서 지원자에게 아래와 같은 **자기소개서 문항(질문)**을 제시했습니다.\n\n" +
-                        "✅ **기업의 질문**: \"" + topic + "\"\n" +
-                        "✅ **지원자 답변**: \"" + resumeText + "\"\n\n" +
-                        "위 역할(페르소나)에 맞춰 지원자의 답변을 분석하고, 아래 **4가지 항목**에 따라 마크다운 형식으로 피드백을 주세요.\n\n" +
-                        "1. **질문 적합성 체크 (가장 중요)**: 지원자가 기업의 질문 의도를 정확히 파악했는지, 아니면 동문서답을 하고 있는지 평가해줘.\n" +
+                        jdPrompt + "\n\n" +
+                        "기업 질문: \"" + topic + "\"\n" +
+                        "지원자 답변: \"" + resumeText + "\"\n\n" +
+                        "위 내용을 분석하여 다음 4가지 항목으로 마크다운 형식의 피드백을 주세요.\n" +
+                        "1. **" + analysisTitle + "**: " + analysisInstruction + "\n" +
                         "2. **내용 분석 및 피드백**: 잘한 점과 아쉬운 점을 구체적으로 지적해줘.\n" +
                         "3. **수정 제안**: 아쉬운 부분을 보완할 수 있는 구체적인 문장 예시를 보여줘.\n" +
                         "4. **꼬리 질문**: 이 내용으로 실제 면접을 본다면 물어볼 날카로운 질문 2가지를 뽑아줘." +
-                        scorePrompt; // 여기에 붙임
+                        scorePrompt;
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("contents", List.of(

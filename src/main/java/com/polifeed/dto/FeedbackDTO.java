@@ -17,6 +17,8 @@ public class FeedbackDTO {
     private LocalDateTime createdAt;
     private String persona;
 
+    private String jdText;
+
     // [추가됨] 5가지 분석 점수 (기본값 0)
     private int scoreLogic;      // 논리력
     private int scoreJobFit;     // 직무적합성

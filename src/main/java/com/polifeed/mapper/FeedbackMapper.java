@@ -9,10 +9,10 @@ public interface FeedbackMapper {
 
     // [수정됨] 점수 컬럼 추가 저장
     @Insert("INSERT INTO feedback_log " +
-            "(user_id, topic, original_text, feedback_text, persona, created_at, " +
+            "(user_id, topic, original_text, feedback_text, persona, jd_text, created_at, " +
             "score_logic, score_job_fit, score_sincerity, score_creativity, score_readability) " +
             "VALUES " +
-            "(#{userId}, #{topic}, #{originalText}, #{feedbackText}, #{persona}, NOW(), " +
+            "(#{userId}, #{topic}, #{originalText}, #{feedbackText}, #{persona}, #{jdText}, NOW(), " +
             "#{scoreLogic}, #{scoreJobFit}, #{scoreSincerity}, #{scoreCreativity}, #{scoreReadability})")
     void saveFeedback(FeedbackDTO feedbackDTO);
 
@@ -28,6 +28,7 @@ public interface FeedbackMapper {
             "    original_text = #{originalText}, " +
             "    feedback_text = #{feedbackText}, " +
             "    persona = #{persona}, " +
+            "    jd_text = #{jd_text}," +
             "    score_logic = #{scoreLogic}, " +
             "    score_job_fit = #{scoreJobFit}, " +
             "    score_sincerity = #{scoreSincerity}, " +

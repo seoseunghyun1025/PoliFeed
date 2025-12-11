@@ -39,6 +39,7 @@ public class MainController {
     public String analyze(@RequestParam("topic") String topic,
                           @RequestParam("resumeText") String text,
                           @RequestParam("persona") String persona,
+                          @RequestParam(value = "jdText", required = false) String jdText,
                           @AuthenticationPrincipal OAuth2User oauth2User,
                           Model model) {
 
@@ -46,7 +47,7 @@ public class MainController {
         String userId = oauth2User.getAttribute("name");
 
         // 1. AI 분석 호출 (전체 응답 받기)
-        String fullResponse = geminiService.getFeedback(topic, text, persona);
+        String fullResponse = geminiService.getFeedback(topic, text, persona, jdText);
 
         // 2. 응답 분리 (텍스트 vs JSON)
         String feedbackText = fullResponse; // 기본값은 전체
@@ -78,6 +79,7 @@ public class MainController {
         dto.setOriginalText(text);
         dto.setFeedbackText(feedbackText); // JSON 제외한 순수 텍스트
         dto.setPersona(persona);
+        dto.setJdText(jdText);
         // 점수 주입
         dto.setScoreLogic(scores.getOrDefault("logic", 0));
         dto.setScoreJobFit(scores.getOrDefault("jobFit", 0));
@@ -122,13 +124,14 @@ public class MainController {
                                 @RequestParam("topic") String topic,
                                 @RequestParam("resumeText") String text,
                                 @RequestParam("persona") String persona,
+                                @RequestParam(value = "jdText", required = false) String jdText,
                                 @AuthenticationPrincipal OAuth2User oauth2User,
                                 Model model) {
 
         String userId = oauth2User.getAttribute("name");
 
         // 1. AI 다시 분석
-        String fullResponse = geminiService.getFeedback(topic, text, persona);
+        String fullResponse = geminiService.getFeedback(topic, text, persona, jdText);
 
         // 2. 파싱 로직 (위와 동일)
         String feedbackText = fullResponse;
@@ -156,6 +159,7 @@ public class MainController {
         dto.setOriginalText(text);
         dto.setFeedbackText(feedbackText);
         dto.setPersona(persona);
+        dto.setJdText(jdText);
 
         dto.setScoreLogic(scores.getOrDefault("logic", 0));
         dto.setScoreJobFit(scores.getOrDefault("jobFit", 0));
