@@ -28,7 +28,7 @@ public interface FeedbackMapper {
             "    original_text = #{originalText}, " +
             "    feedback_text = #{feedbackText}, " +
             "    persona = #{persona}, " +
-            "    jd_text = #{jd_text}," +
+            "    jd_text = #{jdText}," +
             "    score_logic = #{scoreLogic}, " +
             "    score_job_fit = #{scoreJobFit}, " +
             "    score_sincerity = #{scoreSincerity}, " +
