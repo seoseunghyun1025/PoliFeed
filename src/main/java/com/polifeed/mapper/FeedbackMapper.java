@@ -7,26 +7,33 @@ import java.util.List;
 @Mapper
 public interface FeedbackMapper {
 
-    // 1. 저장 (INSERT) - topic 추가
-    @Insert("INSERT INTO feedback_log (user_id, topic, original_text, feedback_text, persona,created_at) " +
-            "VALUES (#{userId}, #{topic}, #{originalText}, #{feedbackText}, #{persona}, NOW())")
+    // [수정됨] 점수 컬럼 추가 저장
+    @Insert("INSERT INTO feedback_log " +
+            "(user_id, topic, original_text, feedback_text, persona, created_at, " +
+            "score_logic, score_job_fit, score_sincerity, score_creativity, score_readability) " +
+            "VALUES " +
+            "(#{userId}, #{topic}, #{originalText}, #{feedbackText}, #{persona}, NOW(), " +
+            "#{scoreLogic}, #{scoreJobFit}, #{scoreSincerity}, #{scoreCreativity}, #{scoreReadability})")
     void saveFeedback(FeedbackDTO feedbackDTO);
 
-    // 2. 목록 조회 (SELECT List) - 마이페이지용
     @Select("SELECT * FROM feedback_log WHERE user_id = #{userId} ORDER BY created_at DESC")
     List<FeedbackDTO> findAllByUserId(String userId);
 
-    // 3. 상세 조회 (SELECT One) - 수정 화면용
     @Select("SELECT * FROM feedback_log WHERE id = #{id}")
     FeedbackDTO findById(Long id);
 
-    // 4. ★ 수정 (UPDATE) ★ - 내용을 고치고 다시 피드백 받으면 덮어쓰기
+    // [수정됨] 점수 컬럼도 같이 업데이트
     @Update("UPDATE feedback_log " +
             "SET topic = #{topic}, " +
             "    original_text = #{originalText}, " +
             "    feedback_text = #{feedbackText}, " +
             "    persona = #{persona}, " +
-            "    created_at = NOW() " + // 수정일자로 갱신 (선택사항)
+            "    score_logic = #{scoreLogic}, " +
+            "    score_job_fit = #{scoreJobFit}, " +
+            "    score_sincerity = #{scoreSincerity}, " +
+            "    score_creativity = #{scoreCreativity}, " +
+            "    score_readability = #{scoreReadability}, " +
+            "    created_at = NOW() " +
             "WHERE id = #{id}")
     void updateFeedback(FeedbackDTO feedbackDTO);
 }

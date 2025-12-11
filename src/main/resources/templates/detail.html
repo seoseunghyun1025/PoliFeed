@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>내용 수정 및 재분석</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
 
@@ -14,8 +16,8 @@
         #feedback-display {
             font-size: 0.95rem;
             line-height: 1.7;
-            /* 최소 높이는 유지하되, 인라인 스타일로 max-height를 줘서 스크롤 생기게 함 */
-            min-height: 300px;
+            /* 차트가 추가되므로 최소 높이 약간 조정 */
+            min-height: 200px;
         }
         #feedback-display h1, #feedback-display h2, #feedback-display h3 {
             font-weight: 700;
@@ -131,10 +133,26 @@
                     </div>
 
                     <div id="result-container">
+
+                        <div class="card mb-3 bg-light border-0">
+                            <div class="card-body">
+                                <h5 class="card-title text-center mb-1" style="font-size: 0.9rem; color:#666;">📊 역량 분석 차트</h5>
+                                <div style="width: 100%; height: 250px; display: flex; justify-content: center;">
+                                    <canvas id="scoreChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <input type="hidden" id="s-logic" th:value="${dto.scoreLogic}">
+                        <input type="hidden" id="s-jobFit" th:value="${dto.scoreJobFit}">
+                        <input type="hidden" id="s-sincerity" th:value="${dto.scoreSincerity}">
+                        <input type="hidden" id="s-creativity" th:value="${dto.scoreCreativity}">
+                        <input type="hidden" id="s-readability" th:value="${dto.scoreReadability}">
+
                         <textarea id="raw-markdown" style="display: none;" th:text="${dto.feedbackText}"></textarea>
 
                         <div id="feedback-display" class="border rounded p-3 bg-light"
-                             style="max-height: 500px; overflow-y: auto;"></div>
+                             style="max-height: 400px; overflow-y: auto;"></div>
 
                         <hr>
 
@@ -153,31 +171,74 @@
 </div>
 
 <script>
-    // 페이지가 로드되면 실행: 마크다운 변환
     document.addEventListener("DOMContentLoaded", function() {
+        // 1. 마크다운 변환
         const rawText = document.getElementById('raw-markdown').value;
         const displayArea = document.getElementById('feedback-display');
 
         if (rawText && displayArea) {
-            // marked: 마크다운 -> HTML 변환
-            // DOMPurify: 보안상 위험한 태그 제거 (XSS 방지)
             displayArea.innerHTML = DOMPurify.sanitize(marked.parse(rawText));
         }
+
+        // 2. 차트 그리기 함수 호출
+        renderChart();
     });
 
+    // 3. 차트 렌더링 함수
+    function renderChart() {
+        const ctx = document.getElementById('scoreChart');
+        if (!ctx) return;
+
+        // hidden input에서 값 가져오기 (없으면 0 처리)
+        const logic = document.getElementById('s-logic').value || 0;
+        const jobFit = document.getElementById('s-jobFit').value || 0;
+        const sincerity = document.getElementById('s-sincerity').value || 0;
+        const creativity = document.getElementById('s-creativity').value || 0;
+        const readability = document.getElementById('s-readability').value || 0;
+
+        new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: ['논리력', '직무적합성', '성실성', '창의성', '가독성'],
+                datasets: [{
+                    label: '역량 점수',
+                    data: [logic, jobFit, sincerity, creativity, readability],
+                    fill: true,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)', // 파란색 투명 배경
+                    borderColor: 'rgb(54, 162, 235)',         // 파란색 선
+                    pointBackgroundColor: 'rgb(54, 162, 235)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(54, 162, 235)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        angleLines: { display: true },
+                        suggestedMin: 0,
+                        suggestedMax: 10,
+                        ticks: { stepSize: 2, backdropColor: 'transparent' }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
     function showLoading() {
-        // 로딩 시 결과창 숨기고 스피너 보여주기
         document.getElementById('result-container').style.display = 'none';
         document.getElementById('loading-spinner').style.display = 'block';
     }
 
     function downloadFeedback() {
-        // 다운로드는 '원본 마크다운' 텍스트를 사용
         const content = document.getElementById('raw-markdown').value;
         if (!content) { alert("다운로드할 내용이 없습니다."); return; }
 
         const element = document.createElement('a');
-        const file = new Blob([content], {type: 'text/markdown'}); // .md 파일로 저장
+        const file = new Blob([content], {type: 'text/markdown'});
         element.href = URL.createObjectURL(file);
         element.download = "PoliFeed_Updated_Feedback.md";
         document.body.appendChild(element);
