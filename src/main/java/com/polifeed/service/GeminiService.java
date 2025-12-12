@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -139,37 +140,29 @@ public class GeminiService {
         }
     }
     public List<String> createInterviewQuestions(String resumeText, String jdText, String persona) {
-        // 1. 성향별 역할 설정
-        String roleDescription;
-        if ("strict".equals(persona)) {
-            roleDescription = "당신은 **15년차 대기업 인사팀장**입니다. 지원자를 검증하기 위해 **매우 날카롭고 비판적인 압박 면접 질문**을 던지세요. 꼬투리를 잡거나 진위를 확인하는 질문 위주로 구성하세요.";
-        } else if ("friendly".equals(persona)) {
-            roleDescription = "당신은 **스타트업의 친절한 CTO**입니다. 지원자의 잠재력을 확인하기 위해 **기술적인 호기심을 바탕으로 한 심층 질문**이나, 함께 일하고 싶은지 확인하는 컬처핏 질문을 던지세요.";
-        } else {
-            roleDescription = "당신은 **정석적인 취업 면접관**입니다. 가장 표준적이고 빈출되는 핵심 역량 질문(직무 적합성, 인성 등) 위주로 구성하세요.";
-        }
-
-        // 2. 프롬프트 구성
-        String prompt = roleDescription + "\n" +
-                "위 역할에 맞춰 지원자의 자소서와 JD(채용공고)를 분석해 면접 질문 5가지를 뽑아주세요.\n\n" +
-                "--- [분석 기준] ---\n" +
-                "1. **자소서 기반 질문 (3개)**: 작성한 내용의 구체적 경험, 성과, 기술적 의사결정 등을 묻는 질문.\n" +
-                "2. **JD/공통 질문 (2개)**: 직무 필수 역량 확인 또는 인성/협업 관련 질문.\n" +
-                "3. **출력 형식**: 서론 없이 오직 **질문 문장 5개만** 한 줄에 하나씩 출력하세요. (번호 매기기 없음)\n\n" +
-                "--- [자소서 내용] ---\n" + resumeText + "\n" +
-                (jdText != null && !jdText.isBlank() ? "--- [채용 공고(JD)] ---\n" + jdText : "");
+        String role = "friendly".equals(persona) ? "호기심 많은 기술 면접관" : "압박 면접관";
+        String prompt = "당신은 " + role + "입니다. 자소서/JD를 보고 면접 질문 5개를 뽑아주세요.\n" +
+                "조건: 서론이나 번호(1.) 없이 **순수 질문 문장만 5줄** 작성하세요. 한 줄에 질문 하나씩.\n\n[자소서]\n" + resumeText;
 
         try {
-            // * callGeminiApi는 기존에 만드신 private 메서드를 활용하거나, RestTemplate 코드를 그대로 쓰시면 됩니다.
-            String text = this.callGeminiApi(prompt);
-
-            return List.of(text.split("\n")).stream()
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .toList();
+            String text = callGeminiApi(prompt);
+            // [수정] 줄바꿈으로 나누고, 혹시 번호(1.)가 붙어있으면 제거하고, 빈 줄은 버림
+            List<String> questions = new ArrayList<>();
+            for (String line : text.split("\n")) {
+                String cleanLine = line.replaceAll("^\\d+\\.\\s*", "").trim(); // "1. 질문" -> "질문"
+                if (cleanLine.length() > 10) { // 너무 짧은 건 질문 아님
+                    questions.add(cleanLine);
+                }
+            }
+            // 만약 질문이 너무 적으면 기본 질문 채워넣기 (안전장치)
+            while (questions.size() < 3) {
+                questions.add("우리 회사의 지원 동기는 무엇인가요?");
+                questions.add("본인의 장단점은 무엇인가요?");
+                questions.add("입사 후 이루고 싶은 목표는?");
+            }
+            return questions.subList(0, Math.min(questions.size(), 5)); // 최대 5개
         } catch (Exception e) {
-            // 에러 시 기본 질문 리턴
-            return List.of("자기소개를 부탁드립니다.", "본인의 강점은 무엇인가요?", "입사 후 목표가 있나요?");
+            return List.of("자기소개를 해주세요.", "성격의 장단점은?", "지원 동기는?");
         }
     }
 

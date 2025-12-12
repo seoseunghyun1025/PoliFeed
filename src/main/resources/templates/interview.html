@@ -48,8 +48,7 @@
         </div>
     </div>
 
-    <div id="chatBox" class="chat-box mb-3 shadow-sm bg-white">
-    </div>
+    <div id="chatBox" class="chat-box mb-3 shadow-sm bg-white"></div>
 
     <div class="input-group mb-3 align-items-end">
         <textarea id="userAnswer" class="form-control" rows="1"
@@ -59,7 +58,7 @@
     </div>
 
     <div class="text-center">
-        <button id="nextBtn" class="btn btn-lg btn-secondary w-100 fw-bold shadow-sm" onclick="showNextQuestion()" style="display: none;">
+        <button id="nextBtn" class="btn btn-lg btn-secondary w-100 fw-bold shadow-sm" onclick="goNextQuestion()" style="display: none;">
             대화 그만하고 다음 질문 받기 ➡️
         </button>
     </div>
@@ -70,24 +69,20 @@
 
 <script>
     let questions = [];
-    let currentQIndex = 0;
-
-    // false: 면접 답변 중 / true: 자유 대화 중
+    let currentQIndex = 0; // 현재 화면에 보이는 질문의 인덱스 (0부터 시작)
     let isChatMode = false;
     let lastFeedbackContext = "";
 
-    // [자동 시작] 페이지 로드되자마자 실행
     document.addEventListener("DOMContentLoaded", function() {
         startInterview();
     });
 
-    // 엔터/전송 로직 분기
     function handleAction() {
-        if (!isChatMode) submitAnswer(); // 면접 답변 제출
-        else submitChat();               // 자유 질문 (티키타카)
+        if (!isChatMode) submitAnswer();
+        else submitChat();
     }
 
-    // 1. 면접 시작 (자동)
+    // 1. 면접 시작
     async function startInterview() {
         addMessage('ai', `안녕하세요! 면접관입니다. 👨‍💼<br>지원자님의 서류(<strong>[[${dto.topic}]]</strong>)를 검토하고 질문을 준비 중입니다...`);
 
@@ -102,14 +97,21 @@
                 body: JSON.stringify({ resumeText, jdText, persona })
             });
             questions = await response.json();
-            showNextQuestion(); // 바로 첫 질문 던지기
+
+            // 질문이 안 왔을 경우 대비
+            if (!questions || questions.length === 0) {
+                questions = ["자기소개를 부탁드립니다.", "성격의 장단점은?", "지원 동기는 무엇인가요?"];
+            }
+
+            showCurrentQuestion(); // 첫 질문(0번) 보여주기
         } catch (e) {
             alert("오류 발생! 서버 로그를 확인해주세요.");
         }
     }
 
-    // 2. 질문 표시
-    function showNextQuestion() {
+    // 2. 현재 질문 표시 (인덱스 변경 X)
+    function showCurrentQuestion() {
+        // 인덱스 체크
         if (currentQIndex >= questions.length) {
             addMessage('ai', "면접이 모두 끝났습니다. 고생하셨습니다! 🎉");
             document.getElementById('userAnswer').disabled = true;
@@ -121,11 +123,10 @@
         addMessage('ai', `<strong>Q${currentQIndex + 1}.</strong> ${questions[currentQIndex]}`);
         lastFeedbackContext = questions[currentQIndex];
 
-        // 상태: 답변 모드
+        // 답변 모드로 설정
         isChatMode = false;
         document.getElementById('nextBtn').style.display = 'none';
 
-        // 입력창 활성화
         const input = document.getElementById('userAnswer');
         input.disabled = false;
         input.placeholder = "답변을 입력하세요...";
@@ -133,7 +134,13 @@
         document.getElementById('sendBtn').disabled = false;
     }
 
-    // 3. 면접 답변 제출 -> 피드백 받기
+    // 3. [핵심] 다음 질문 넘어가기 버튼 클릭 시 실행
+    function goNextQuestion() {
+        currentQIndex++; // 여기서만 인덱스를 올립니다!
+        showCurrentQuestion();
+    }
+
+    // 4. 면접 답변 제출
     async function submitAnswer() {
         const input = document.getElementById('userAnswer');
         const answer = input.value;
@@ -154,7 +161,6 @@
             });
             const feedback = await response.text();
 
-            // 피드백 표시
             const chatBox = document.getElementById('chatBox');
             const feedbackDiv = document.createElement('div');
             feedbackDiv.className = 'feedback-box mb-3 shadow-sm';
@@ -162,24 +168,22 @@
             chatBox.appendChild(feedbackDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            // [상태 전환] 이제 자유 대화 모드
+            // 채팅 모드로 전환
             isChatMode = true;
             lastFeedbackContext = feedback;
 
-            // 입력창 다시 활성화 (궁금한 거 물어보라고)
             input.disabled = false;
-            input.placeholder = "피드백에 대해 궁금한 점을 물어보세요. (넘어가려면 아래 버튼 클릭)";
+            input.placeholder = "궁금한 점을 물어보거나, 버튼을 눌러 넘어가세요.";
             input.focus();
             document.getElementById('sendBtn').disabled = false;
 
-            // '다음 질문' 버튼 표시
+            // 다음 버튼 표시 (인덱스는 올리지 않음!)
             document.getElementById('nextBtn').style.display = 'block';
-            currentQIndex++;
 
         } catch (e) { alert("평가 중 오류 발생"); }
     }
 
-    // 4. 자유 대화 (티키타카)
+    // 5. 자유 대화
     async function submitChat() {
         const input = document.getElementById('userAnswer');
         const message = input.value;
@@ -187,33 +191,19 @@
 
         addMessage('user', message);
         input.value = '';
-        input.disabled = true;
 
         const persona = document.getElementById('personaSelect').value;
 
         try {
-            // 채팅 API 호출 (Controller에 이 API가 있어야 함)
             const response = await fetch('/api/interview/chat', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({
-                    context: lastFeedbackContext,
-                    message: message,
-                    persona: persona
-                })
+                body: JSON.stringify({ context: lastFeedbackContext, message: message, persona: persona })
             });
             const reply = await response.text();
-
             addMessage('ai', reply);
-            lastFeedbackContext = reply; // 문맥 업데이트
-
-            input.disabled = false;
-            input.focus();
-        } catch (e) {
-            // 만약 채팅 API가 없으면 그냥 알림
-            alert("채팅 기능 API가 서버에 없습니다. MainController에 /api/interview/chat을 추가해주세요.");
-            input.disabled = false;
-        }
+            lastFeedbackContext = reply;
+        } catch (e) { alert("대화 오류"); }
     }
 
     function addMessage(sender, html) {
