@@ -16,6 +16,19 @@
         .user .bubble { background-color: #0d6efd; color: white; border-top-right-radius: 0; }
         .feedback-box { background-color: #fff3cd; border: 1px solid #ffecb5; border-radius: 10px; padding: 15px; margin-top: 10px; font-size: 0.95rem; }
         textarea::-webkit-scrollbar { display: none; }
+
+        /* 마이크 버튼 애니메이션 (녹음 중일 때 깜빡임) */
+        .recording {
+            animation: pulse 1.5s infinite;
+            background-color: #dc3545 !important; /* 빨간색 */
+            color: white !important;
+            border-color: #dc3545 !important;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -34,7 +47,12 @@
 <div class="container py-3 chat-container">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3 class="fw-bold mb-0">🎙️ AI 모의 면접실</h3>
-        <a th:href="@{/mypage/{id}(id=${dto.id})}" class="btn btn-outline-secondary">나가기 🚪</a>
+        <div class="d-flex align-items-center gap-2">
+            <button id="ttsToggleBtn" class="btn btn-outline-primary btn-sm" onclick="toggleTTS()">
+                🔊 듣기: ON
+            </button>
+            <a th:href="@{/mypage/{id}(id=${dto.id})}" class="btn btn-outline-secondary btn-sm">나가기 🚪</a>
+        </div>
     </div>
 
     <div class="card mb-3 border-warning">
@@ -51,9 +69,14 @@
     <div id="chatBox" class="chat-box mb-3 shadow-sm bg-white"></div>
 
     <div class="input-group mb-3 align-items-end">
+        <button class="btn btn-outline-secondary" type="button" id="micBtn" onclick="toggleRecording()" style="height: 100%; border-right: 0;">
+            🎤
+        </button>
+
         <textarea id="userAnswer" class="form-control" rows="1"
                   placeholder="질문을 생성하고 있습니다..." disabled
-                  style="resize: none; overflow-y: hidden; min-height: 38px; max-height: 150px;"></textarea>
+                  style="resize: none; overflow-y: hidden; min-height: 38px; max-height: 150px; border-left: 0;"></textarea>
+
         <button class="btn btn-primary" id="sendBtn" onclick="handleAction()" style="height: 100%;" disabled>전송 ⬆️</button>
     </div>
 
@@ -69,22 +92,143 @@
 
 <script>
     let questions = [];
-    let currentQIndex = 0; // 현재 화면에 보이는 질문의 인덱스 (0부터 시작)
+    let currentQIndex = 0;
     let isChatMode = false;
     let lastFeedbackContext = "";
 
+    // 음성 관련 변수
+    let ttsEnabled = true;
+    let recognition = null;
+    let isRecording = false;
+
     document.addEventListener("DOMContentLoaded", function() {
+        initSpeechRecognition();
         startInterview();
     });
 
+    // --- [수정됨] 에러 원인을 알려주는 음성 인식 초기화 ---
+    function initSpeechRecognition() {
+        // 브라우저 지원 여부 확인
+        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            alert("⚠️ 이 브라우저는 음성 인식을 지원하지 않습니다.\n구글 크롬(Chrome) 브라우저를 사용해주세요.");
+            document.getElementById('micBtn').style.display = 'none';
+            return;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ko-KR';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        // [성공 시]
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            const input = document.getElementById('userAnswer');
+
+            if (input.value.trim().length > 0) {
+                input.value += " " + transcript;
+            } else {
+                input.value = transcript;
+            }
+
+            // 높이 조절
+            input.style.height = 'auto';
+            input.style.height = (input.scrollHeight) + 'px';
+
+            stopRecording();
+        };
+
+        // [에러 발생 시] 경고창 띄우기 (디버깅용)
+        recognition.onerror = function(event) {
+            console.error("음성 인식 에러:", event.error);
+
+            if (event.error === 'not-allowed') {
+                alert("🚫 마이크 권한이 차단되었습니다.\n주소창 옆 자물쇠(🔒) 또는 마이크 아이콘을 눌러 '허용'해주세요.");
+            } else if (event.error === 'no-speech') {
+                alert("🔇 목소리가 들리지 않습니다. 조금 더 크게 말씀해 주세요.");
+            } else if (event.error === 'network') {
+                alert("⚠️ 네트워크 오류가 발생했습니다. (인터넷 연결 확인)");
+            } else {
+                alert("오류 발생: " + event.error);
+            }
+            stopRecording();
+        };
+
+        recognition.onend = function() {
+            stopRecording();
+        };
+    }
+
+    function toggleRecording() {
+        if (!recognition) {
+            alert("음성 인식을 사용할 수 없는 환경입니다.");
+            return;
+        }
+
+        if (isRecording) {
+            stopRecording();
+        } else {
+            startRecording();
+        }
+    }
+
+    function startRecording() {
+        try {
+            recognition.start();
+            isRecording = true;
+            const micBtn = document.getElementById('micBtn');
+            micBtn.classList.add('recording');
+            document.getElementById('userAnswer').placeholder = "듣고 있습니다... 말씀하세요 👂";
+        } catch (e) {
+            console.error(e);
+            alert("마이크 시작 실패: 이미 사용 중이거나 권한이 없습니다.");
+        }
+    }
+
+    function stopRecording() {
+        if (isRecording) {
+            recognition.stop();
+            isRecording = false;
+            const micBtn = document.getElementById('micBtn');
+            micBtn.classList.remove('recording');
+            document.getElementById('userAnswer').placeholder = isChatMode ? "궁금한 점을 물어보세요." : "답변을 입력하세요...";
+        }
+    }
+
+    // --- TTS (말하기) 기능 ---
+    function speakText(text) {
+        if (!ttsEnabled || !('speechSynthesis' in window)) return;
+        const cleanText = text.replace(/<[^>]*>?/gm, '');
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.lang = 'ko-KR';
+        window.speechSynthesis.speak(utterance);
+    }
+
+    function toggleTTS() {
+        ttsEnabled = !ttsEnabled;
+        const btn = document.getElementById('ttsToggleBtn');
+        if (ttsEnabled) {
+            btn.innerHTML = "🔊 듣기: ON";
+            btn.classList.replace('btn-outline-secondary', 'btn-outline-primary');
+        } else {
+            btn.innerHTML = "🔇 듣기: OFF";
+            btn.classList.replace('btn-outline-primary', 'btn-outline-secondary');
+            window.speechSynthesis.cancel();
+        }
+    }
+
+    // --- 기존 면접 로직 ---
     function handleAction() {
         if (!isChatMode) submitAnswer();
         else submitChat();
     }
 
-    // 1. 면접 시작
     async function startInterview() {
-        addMessage('ai', `안녕하세요! 면접관입니다. 👨‍💼<br>지원자님의 서류(<strong>[[${dto.topic}]]</strong>)를 검토하고 질문을 준비 중입니다...`);
+        const introMsg = `안녕하세요! 면접관입니다. 👨‍💼<br>지원자님의 서류(<strong>[[${dto.topic}]]</strong>)를 검토하고 질문을 준비 중입니다...`;
+        addMessage('ai', introMsg);
+        speakText("안녕하세요 면접관입니다. 서류를 검토하고 질문을 준비 중입니다.");
 
         const resumeText = document.getElementById('resumeText').value;
         const jdText = document.getElementById('jdText').value;
@@ -98,32 +242,32 @@
             });
             questions = await response.json();
 
-            // 질문이 안 왔을 경우 대비
             if (!questions || questions.length === 0) {
                 questions = ["자기소개를 부탁드립니다.", "성격의 장단점은?", "지원 동기는 무엇인가요?"];
             }
-
-            showCurrentQuestion(); // 첫 질문(0번) 보여주기
+            showCurrentQuestion();
         } catch (e) {
-            alert("오류 발생! 서버 로그를 확인해주세요.");
+            alert("서버 연결 오류가 발생했습니다.");
         }
     }
 
-    // 2. 현재 질문 표시 (인덱스 변경 X)
     function showCurrentQuestion() {
-        // 인덱스 체크
         if (currentQIndex >= questions.length) {
             addMessage('ai', "면접이 모두 끝났습니다. 고생하셨습니다! 🎉");
+            speakText("면접이 모두 끝났습니다. 고생하셨습니다.");
+
             document.getElementById('userAnswer').disabled = true;
             document.getElementById('sendBtn').disabled = true;
+            document.getElementById('micBtn').disabled = true;
             document.getElementById('nextBtn').style.display = 'none';
             return;
         }
 
-        addMessage('ai', `<strong>Q${currentQIndex + 1}.</strong> ${questions[currentQIndex]}`);
-        lastFeedbackContext = questions[currentQIndex];
+        const question = questions[currentQIndex];
+        addMessage('ai', `<strong>Q${currentQIndex + 1}.</strong> ${question}`);
+        speakText(question);
 
-        // 답변 모드로 설정
+        lastFeedbackContext = question;
         isChatMode = false;
         document.getElementById('nextBtn').style.display = 'none';
 
@@ -134,13 +278,11 @@
         document.getElementById('sendBtn').disabled = false;
     }
 
-    // 3. [핵심] 다음 질문 넘어가기 버튼 클릭 시 실행
     function goNextQuestion() {
-        currentQIndex++; // 여기서만 인덱스를 올립니다!
+        currentQIndex++;
         showCurrentQuestion();
     }
 
-    // 4. 면접 답변 제출
     async function submitAnswer() {
         const input = document.getElementById('userAnswer');
         const answer = input.value;
@@ -150,6 +292,7 @@
         input.value = '';
         input.disabled = true;
         document.getElementById('sendBtn').disabled = true;
+        window.speechSynthesis.cancel();
 
         addMessage('ai', "답변 분석 중... 🧐");
 
@@ -168,22 +311,21 @@
             chatBox.appendChild(feedbackDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            // 채팅 모드로 전환
+            speakText("답변에 대한 피드백을 드렸습니다.");
+
             isChatMode = true;
             lastFeedbackContext = feedback;
 
             input.disabled = false;
-            input.placeholder = "궁금한 점을 물어보거나, 버튼을 눌러 넘어가세요.";
+            input.placeholder = "궁금한 점을 물어보세요.";
             input.focus();
             document.getElementById('sendBtn').disabled = false;
 
-            // 다음 버튼 표시 (인덱스는 올리지 않음!)
             document.getElementById('nextBtn').style.display = 'block';
 
         } catch (e) { alert("평가 중 오류 발생"); }
     }
 
-    // 5. 자유 대화
     async function submitChat() {
         const input = document.getElementById('userAnswer');
         const message = input.value;
@@ -191,6 +333,7 @@
 
         addMessage('user', message);
         input.value = '';
+        window.speechSynthesis.cancel();
 
         const persona = document.getElementById('personaSelect').value;
 
@@ -201,7 +344,9 @@
                 body: JSON.stringify({ context: lastFeedbackContext, message: message, persona: persona })
             });
             const reply = await response.text();
+
             addMessage('ai', reply);
+            speakText(reply);
             lastFeedbackContext = reply;
         } catch (e) { alert("대화 오류"); }
     }
