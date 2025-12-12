@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>실전 모의 면접</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .chat-container { max-width: 800px; margin: 0 auto; }
+        .chat-box { height: 550px; overflow-y: auto; background-color: #f8f9fa; border: 1px solid #ddd; padding: 20px; border-radius: 10px; }
+        .message { margin-bottom: 15px; max-width: 85%; }
+        .message.ai { margin-right: auto; }
+        .message.user { margin-left: auto; text-align: right; }
+        .bubble { padding: 12px 18px; border-radius: 15px; display: inline-block; text-align: left; line-height: 1.6; white-space: pre-wrap; }
+        .ai .bubble { background-color: #e9ecef; color: #333; border-top-left-radius: 0; }
+        .user .bubble { background-color: #0d6efd; color: white; border-top-right-radius: 0; }
+        .feedback-box { background-color: #fff3cd; border: 1px solid #ffecb5; border-radius: 10px; padding: 15px; margin-top: 10px; font-size: 0.95rem; }
+        textarea::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="bg-light">
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container">
+        <a class="navbar-brand" href="/">PoliFeed</a>
+        <div class="d-flex" th:if="${userName != null}">
+            <span class="navbar-text text-white me-3">반갑습니다, <strong th:text="${userName}">User</strong>님!</span>
+            <a href="/mypage" class="btn btn-sm btn-outline-warning me-2">📂 보관함</a>
+            <a href="/logout" class="btn btn-sm btn-outline-light">로그아웃</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container py-3 chat-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold mb-0">🎙️ AI 모의 면접실</h3>
+        <a th:href="@{/mypage/{id}(id=${dto.id})}" class="btn btn-outline-secondary">나가기 🚪</a>
+    </div>
+
+    <div class="card mb-3 border-warning">
+        <div class="card-body py-2 d-flex align-items-center bg-white rounded">
+            <label class="fw-bold me-3 text-nowrap">🎭 면접관 설정:</label>
+            <select id="personaSelect" class="form-select form-select-sm border-warning fw-bold">
+                <option value="strict" th:selected="${dto.persona == 'strict'}">🔥 깐깐한 대기업 인사팀장</option>
+                <option value="friendly" th:selected="${dto.persona == 'friendly'}">🍀 친절한 스타트업 CTO</option>
+                <option value="consultant" th:selected="${dto.persona == 'consultant'}">👨‍🏫 정석 취업 컨설턴트</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="chatBox" class="chat-box mb-3 shadow-sm bg-white">
+    </div>
+
+    <div class="input-group mb-3 align-items-end">
+        <textarea id="userAnswer" class="form-control" rows="1"
+                  placeholder="질문을 생성하고 있습니다..." disabled
+                  style="resize: none; overflow-y: hidden; min-height: 38px; max-height: 150px;"></textarea>
+        <button class="btn btn-primary" id="sendBtn" onclick="handleAction()" style="height: 100%;" disabled>전송 ⬆️</button>
+    </div>
+
+    <div class="text-center">
+        <button id="nextBtn" class="btn btn-lg btn-secondary w-100 fw-bold shadow-sm" onclick="showNextQuestion()" style="display: none;">
+            대화 그만하고 다음 질문 받기 ➡️
+        </button>
+    </div>
+
+    <input type="hidden" id="resumeText" th:value="${dto.originalText}">
+    <input type="hidden" id="jdText" th:value="${dto.jdText}">
+</div>
+
+<script>
+    let questions = [];
+    let currentQIndex = 0;
+
+    // false: 면접 답변 중 / true: 자유 대화 중
+    let isChatMode = false;
+    let lastFeedbackContext = "";
+
+    // [자동 시작] 페이지 로드되자마자 실행
+    document.addEventListener("DOMContentLoaded", function() {
+        startInterview();
+    });
+
+    // 엔터/전송 로직 분기
+    function handleAction() {
+        if (!isChatMode) submitAnswer(); // 면접 답변 제출
+        else submitChat();               // 자유 질문 (티키타카)
+    }
+
+    // 1. 면접 시작 (자동)
+    async function startInterview() {
+        addMessage('ai', `안녕하세요! 면접관입니다. 👨‍💼<br>지원자님의 서류(<strong>[[${dto.topic}]]</strong>)를 검토하고 질문을 준비 중입니다...`);
+
+        const resumeText = document.getElementById('resumeText').value;
+        const jdText = document.getElementById('jdText').value;
+        const persona = document.getElementById('personaSelect').value;
+
+        try {
+            const response = await fetch('/api/interview/init', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ resumeText, jdText, persona })
+            });
+            questions = await response.json();
+            showNextQuestion(); // 바로 첫 질문 던지기
+        } catch (e) {
+            alert("오류 발생! 서버 로그를 확인해주세요.");
+        }
+    }
+
+    // 2. 질문 표시
+    function showNextQuestion() {
+        if (currentQIndex >= questions.length) {
+            addMessage('ai', "면접이 모두 끝났습니다. 고생하셨습니다! 🎉");
+            document.getElementById('userAnswer').disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('nextBtn').style.display = 'none';
+            return;
+        }
+
+        addMessage('ai', `<strong>Q${currentQIndex + 1}.</strong> ${questions[currentQIndex]}`);
+        lastFeedbackContext = questions[currentQIndex];
+
+        // 상태: 답변 모드
+        isChatMode = false;
+        document.getElementById('nextBtn').style.display = 'none';
+
+        // 입력창 활성화
+        const input = document.getElementById('userAnswer');
+        input.disabled = false;
+        input.placeholder = "답변을 입력하세요...";
+        input.focus();
+        document.getElementById('sendBtn').disabled = false;
+    }
+
+    // 3. 면접 답변 제출 -> 피드백 받기
+    async function submitAnswer() {
+        const input = document.getElementById('userAnswer');
+        const answer = input.value;
+        if (!answer.trim()) return;
+
+        addMessage('user', answer);
+        input.value = '';
+        input.disabled = true;
+        document.getElementById('sendBtn').disabled = true;
+
+        addMessage('ai', "답변 분석 중... 🧐");
+
+        try {
+            const response = await fetch('/api/interview/feedback', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ question: questions[currentQIndex], answer: answer })
+            });
+            const feedback = await response.text();
+
+            // 피드백 표시
+            const chatBox = document.getElementById('chatBox');
+            const feedbackDiv = document.createElement('div');
+            feedbackDiv.className = 'feedback-box mb-3 shadow-sm';
+            feedbackDiv.innerHTML = marked.parse(feedback);
+            chatBox.appendChild(feedbackDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // [상태 전환] 이제 자유 대화 모드
+            isChatMode = true;
+            lastFeedbackContext = feedback;
+
+            // 입력창 다시 활성화 (궁금한 거 물어보라고)
+            input.disabled = false;
+            input.placeholder = "피드백에 대해 궁금한 점을 물어보세요. (넘어가려면 아래 버튼 클릭)";
+            input.focus();
+            document.getElementById('sendBtn').disabled = false;
+
+            // '다음 질문' 버튼 표시
+            document.getElementById('nextBtn').style.display = 'block';
+            currentQIndex++;
+
+        } catch (e) { alert("평가 중 오류 발생"); }
+    }
+
+    // 4. 자유 대화 (티키타카)
+    async function submitChat() {
+        const input = document.getElementById('userAnswer');
+        const message = input.value;
+        if (!message.trim()) return;
+
+        addMessage('user', message);
+        input.value = '';
+        input.disabled = true;
+
+        const persona = document.getElementById('personaSelect').value;
+
+        try {
+            // 채팅 API 호출 (Controller에 이 API가 있어야 함)
+            const response = await fetch('/api/interview/chat', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    context: lastFeedbackContext,
+                    message: message,
+                    persona: persona
+                })
+            });
+            const reply = await response.text();
+
+            addMessage('ai', reply);
+            lastFeedbackContext = reply; // 문맥 업데이트
+
+            input.disabled = false;
+            input.focus();
+        } catch (e) {
+            // 만약 채팅 API가 없으면 그냥 알림
+            alert("채팅 기능 API가 서버에 없습니다. MainController에 /api/interview/chat을 추가해주세요.");
+            input.disabled = false;
+        }
+    }
+
+    function addMessage(sender, html) {
+        const chatBox = document.getElementById('chatBox');
+        const div = document.createElement('div');
+        div.className = `message ${sender}`;
+        div.innerHTML = `<div class="bubble">${html}</div>`;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    const inputField = document.getElementById('userAnswer');
+    inputField.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+    inputField.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleAction();
+        }
+    });
+</script>
+
+</body>
+</html>

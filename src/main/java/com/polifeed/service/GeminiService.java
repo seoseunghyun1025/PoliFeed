@@ -3,6 +3,7 @@ package com.polifeed.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -137,4 +138,104 @@ public class GeminiService {
             return "죄송합니다. 문장 교정 중 오류가 발생했습니다.";
         }
     }
+    public List<String> createInterviewQuestions(String resumeText, String jdText, String persona) {
+        // 1. 성향별 역할 설정
+        String roleDescription;
+        if ("strict".equals(persona)) {
+            roleDescription = "당신은 **15년차 대기업 인사팀장**입니다. 지원자를 검증하기 위해 **매우 날카롭고 비판적인 압박 면접 질문**을 던지세요. 꼬투리를 잡거나 진위를 확인하는 질문 위주로 구성하세요.";
+        } else if ("friendly".equals(persona)) {
+            roleDescription = "당신은 **스타트업의 친절한 CTO**입니다. 지원자의 잠재력을 확인하기 위해 **기술적인 호기심을 바탕으로 한 심층 질문**이나, 함께 일하고 싶은지 확인하는 컬처핏 질문을 던지세요.";
+        } else {
+            roleDescription = "당신은 **정석적인 취업 면접관**입니다. 가장 표준적이고 빈출되는 핵심 역량 질문(직무 적합성, 인성 등) 위주로 구성하세요.";
+        }
+
+        // 2. 프롬프트 구성
+        String prompt = roleDescription + "\n" +
+                "위 역할에 맞춰 지원자의 자소서와 JD(채용공고)를 분석해 면접 질문 5가지를 뽑아주세요.\n\n" +
+                "--- [분석 기준] ---\n" +
+                "1. **자소서 기반 질문 (3개)**: 작성한 내용의 구체적 경험, 성과, 기술적 의사결정 등을 묻는 질문.\n" +
+                "2. **JD/공통 질문 (2개)**: 직무 필수 역량 확인 또는 인성/협업 관련 질문.\n" +
+                "3. **출력 형식**: 서론 없이 오직 **질문 문장 5개만** 한 줄에 하나씩 출력하세요. (번호 매기기 없음)\n\n" +
+                "--- [자소서 내용] ---\n" + resumeText + "\n" +
+                (jdText != null && !jdText.isBlank() ? "--- [채용 공고(JD)] ---\n" + jdText : "");
+
+        try {
+            // * callGeminiApi는 기존에 만드신 private 메서드를 활용하거나, RestTemplate 코드를 그대로 쓰시면 됩니다.
+            String text = this.callGeminiApi(prompt);
+
+            return List.of(text.split("\n")).stream()
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .toList();
+        } catch (Exception e) {
+            // 에러 시 기본 질문 리턴
+            return List.of("자기소개를 부탁드립니다.", "본인의 강점은 무엇인가요?", "입사 후 목표가 있나요?");
+        }
+    }
+
+    public String evaluateInterviewAnswer(String question, String userAnswer) {
+        String prompt = "면접관으로서 지원자의 답변을 평가해주세요.\n" +
+                "질문: \"" + question + "\"\n" +
+                "답변: \"" + userAnswer + "\"\n\n" +
+                "피드백 가이드:\n" +
+                "1. **좋은 점**: 구체성, 태도 등.\n" +
+                "2. **아쉬운 점**: 부족한 논리, 너무 짧은 답변 등.\n" +
+                "3. **모범 답안 예시**: 더 나은 답변 방향 제안.\n" +
+                "짧고 굵게 마크다운 형식으로 답변해주세요.";
+
+        return this.callGeminiApi(prompt);
+    }
+
+    public String replyToChat(String previousContext, String userMessage, String persona) {
+        String role = "friendly".equals(persona) ? "친절한 멘토" : "냉철한 면접관";
+
+        String prompt = "당신은 " + role + "입니다.\n" +
+                "상황: 면접 질문에 대해 피드백을 주었는데, 지원자가 이에 대해 추가 질문이나 반론을 제기했습니다.\n" +
+                "--- [이전 문맥] ---\n" + previousContext + "\n" +
+                "--- [지원자 말] ---\n" + userMessage + "\n" +
+                "------------------\n" +
+                "지원자의 말에 적절하게 대답해주세요. (다음 면접 질문은 하지 마세요. 대화만 하세요.)";
+
+        return callGeminiApi(prompt);
+    }
+
+    private String callGeminiApi(String prompt) {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))));
+
+        try {
+            Map<String, Object> response = restTemplate.postForObject(url, requestBody, Map.class);
+
+            // 1. 응답 자체가 비어있는 경우
+            if (response == null) return "AI 서버 응답이 없습니다.";
+
+            // 2. 후보군(candidates)이 비어있는 경우 (주로 안전 필터에 걸렸을 때)
+            if (!response.containsKey("candidates")) {
+                // 안전 필터 피드백이 있는지 확인
+                if (response.containsKey("promptFeedback")) {
+                    return "⚠️ AI가 답변 생성을 거부했습니다. (사유: 안전 필터/민감한 주제)";
+                }
+                return "AI가 답변을 생성하지 못했습니다.";
+            }
+
+            List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
+            if (candidates == null || candidates.isEmpty()) {
+                return "⚠️ AI 답변 생성 실패 (내용이 너무 짧거나 필터링됨)";
+            }
+
+            // 3. 정상적으로 텍스트 추출
+            Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
+            List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
+            return (String) parts.get(0).get("text");
+
+        } catch (HttpClientErrorException.TooManyRequests e) {
+            return "⛔ 요청이 너무 많습니다. 잠시 후(10초 뒤) 다시 시도해주세요.";
+        } catch (Exception e) {
+            e.printStackTrace(); // 서버 콘솔에 진짜 에러 원인을 찍어줌
+            return "🚫 시스템 오류가 발생했습니다. (" + e.getMessage() + ")";
+        }
+    }
+
 }

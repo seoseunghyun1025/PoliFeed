@@ -28,12 +28,6 @@
         #feedback-display h2 { font-size: 1.5rem; }
         #feedback-display h3 { font-size: 1.3rem; }
 
-        #feedback-display ul, #feedback-display ol {
-            padding-left: 1.5rem;
-            margin-bottom: 1rem;
-        }
-        #feedback-display li { margin-bottom: 0.5rem; }
-
         #feedback-display blockquote {
             border-left: 5px solid #17a2b8;
             padding: 0.5rem 1rem;
@@ -43,28 +37,10 @@
             border-radius: 0 5px 5px 0;
         }
 
-        #feedback-display code {
-            background-color: #f1f3f5;
-            color: #d63384;
-            padding: 2px 5px;
-            border-radius: 4px;
-            font-family: monospace;
-        }
-        #feedback-display pre {
-            background-color: #212529;
-            color: #f8f9fa;
-            padding: 1rem;
-            border-radius: 5px;
-            overflow-x: auto;
-        }
-        #feedback-display pre code {
-            background-color: transparent;
-            color: inherit;
-            padding: 0;
-        }
-        #feedback-display strong {
-            color: #0d6efd;
-        }
+        #feedback-display strong { color: #0d6efd; }
+
+        /* 버튼 내 스피너 스타일 */
+        .spinner-border-sm { margin-bottom: 2px; }
     </style>
 </head>
 <body class="bg-light">
@@ -86,9 +62,21 @@
     <div class="row">
         <div class="col-md-6 mb-4">
             <div class="card shadow-sm h-100">
-                <div class="card-header bg-warning text-dark fw-bold">✍️ 내용 수정하기</div>
-                <div class="card-body">
 
+                <div class="card-header bg-warning text-dark fw-bold">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <span>✍️ 내용 수정하기</span>
+                        </div>
+                        <div class="col-auto">
+                            <a th:href="@{/interview/{id}(id=${dto.id})}" class="btn btn-sm btn-dark shadow-sm fw-bold">
+                                🎙️ 실전 모의 면접장 입장
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
                     <form th:action="@{/analyze/update}" method="post" onsubmit="showLoading()">
 
                         <input type="hidden" name="id" th:value="${dto.id}">
@@ -116,12 +104,13 @@
 
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <label class="form-label fw-bold mb-0">📝 답변 내용</label>
-                            <div>
-                                <button type="button" id="undoBtn" onclick="undoRewrite()" class="btn btn-sm btn-outline-danger fw-bold me-2" style="display: none;">
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" id="undoBtn" onclick="undoRewrite()" class="btn btn-sm btn-outline-danger fw-bold" style="display: none;">
                                     ↩️ 원본 복구
                                 </button>
-                                <button type="button" onclick="magicRewrite()" class="btn btn-sm btn-outline-primary fw-bold">
-                                    🪄 AI 문장 다듬기
+                                <button type="button" id="rewriteBtn" onclick="magicRewrite()" class="btn btn-sm btn-outline-primary fw-bold" style="min-width: 140px;">
+                                    <span id="btnText">🪄 AI 문장 다듬기</span>
+                                    <span id="btnSpinner" class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
                                 </button>
                             </div>
                         </div>
@@ -150,7 +139,6 @@
                     </div>
 
                     <div id="result-container">
-
                         <div class="card mb-3 bg-light border-0">
                             <div class="card-body">
                                 <h5 class="card-title text-center mb-1" style="font-size: 0.9rem; color:#666;">📊 역량 분석 차트</h5>
@@ -172,7 +160,6 @@
                              style="max-height: 400px; overflow-y: auto;"></div>
 
                         <hr>
-
                         <div class="text-end">
                             <button onclick="downloadFeedback()" class="btn btn-outline-dark btn-sm">
                                 📥 피드백 다운로드 (.md)
@@ -184,27 +171,21 @@
             </div>
         </div>
     </div>
-
 </div>
 
 <script>
-    // [NEW] 원본 백업 변수 (전역 변수)
     let originalBackup = "";
 
     document.addEventListener("DOMContentLoaded", function() {
-        // 1. 마크다운 변환
         const rawText = document.getElementById('raw-markdown').value;
         const displayArea = document.getElementById('feedback-display');
 
         if (rawText && displayArea) {
             displayArea.innerHTML = DOMPurify.sanitize(marked.parse(rawText));
         }
-
-        // 2. 차트 그리기
         renderChart();
     });
 
-    // 차트 렌더링 함수
     function renderChart() {
         const ctx = document.getElementById('scoreChart');
         if (!ctx) return;
@@ -247,7 +228,7 @@
         });
     }
 
-    // [NEW] 문장 다듬기 기능 (Magic Rewrite)
+    // AI 문장 다듬기
     async function magicRewrite() {
         const textArea = document.getElementById('resumeText');
         const currentText = textArea.value;
@@ -257,19 +238,20 @@
             return;
         }
 
-        if (!confirm("AI가 내용을 더 매끄럽게 수정합니다.\n(마음에 안 들면 '복구'할 수 있습니다.)")) {
+        if (!confirm("AI가 내용을 더 매끄럽게 수정합니다.\n진행하시겠습니까?")) {
             return;
         }
 
-        // ★ 핵심: 수정 전 내용을 백업 변수에 저장 ★
         originalBackup = currentText;
 
-        // UI 변경 (로딩 중)
-        const btn = event.target;
-        const originalBtnText = btn.innerHTML;
+        const btn = document.getElementById('rewriteBtn');
+        const btnText = document.getElementById('btnText');
+        const btnSpinner = document.getElementById('btnSpinner');
+
         btn.disabled = true;
-        btn.innerHTML = "⏳ 교정 중...";
-        textArea.style.opacity = "0.5";
+        btnText.textContent = " 교정 중...";
+        btnSpinner.style.display = "inline-block";
+        textArea.style.opacity = "0.6";
 
         try {
             const response = await fetch('/api/rewrite', {
@@ -282,12 +264,10 @@
                 const rewrittenText = await response.text();
                 textArea.value = rewrittenText;
 
-                // 성공 효과 (초록색 깜빡임)
                 textArea.style.transition = "background-color 0.3s";
                 textArea.style.backgroundColor = "#d1e7dd";
                 setTimeout(() => textArea.style.backgroundColor = "white", 800);
 
-                // ★ '복구' 버튼 보여주기 ★
                 document.getElementById('undoBtn').style.display = 'inline-block';
             } else {
                 alert("서버 오류가 발생했습니다.");
@@ -297,23 +277,18 @@
             alert("요청 중 에러가 발생했습니다.");
         } finally {
             btn.disabled = false;
-            btn.innerHTML = originalBtnText;
+            btnText.textContent = "🪄 AI 문장 다듬기";
+            btnSpinner.style.display = "none";
             textArea.style.opacity = "1";
         }
     }
 
-    // [NEW] 원본 복구 기능 (Undo)
+    // 원본 복구
     function undoRewrite() {
         const textArea = document.getElementById('resumeText');
-
         if (confirm("수정 전 원본 내용으로 되돌리시겠습니까?")) {
-            // 백업해둔 텍스트로 복구
             textArea.value = originalBackup;
-
-            // 복구 버튼 다시 숨김
             document.getElementById('undoBtn').style.display = 'none';
-
-            // 시각적 피드백 (빨간색 깜빡임)
             textArea.style.transition = "background-color 0.3s";
             textArea.style.backgroundColor = "#f8d7da";
             setTimeout(() => textArea.style.backgroundColor = "white", 800);
@@ -328,11 +303,10 @@
     function downloadFeedback() {
         const content = document.getElementById('raw-markdown').value;
         if (!content) { alert("다운로드할 내용이 없습니다."); return; }
-
         const element = document.createElement('a');
         const file = new Blob([content], {type: 'text/markdown'});
         element.href = URL.createObjectURL(file);
-        element.download = "PoliFeed_Updated_Feedback.md";
+        element.download = "PoliFeed_Result.md";
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);

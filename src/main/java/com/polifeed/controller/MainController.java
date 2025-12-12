@@ -182,6 +182,47 @@ public class MainController {
         return geminiService.rewriteText(originalText);
     }
 
+    @GetMapping("/interview/{id}")
+    public String interviewPage(@PathVariable Long id, Model model, @AuthenticationPrincipal OAuth2User oauth2User) {
+        FeedbackDTO dto = feedbackMapper.findById(id);
+
+        // 본인 글 아니면 차단 (간단 체크)
+        if (!dto.getUserId().equals(oauth2User.getAttribute("name"))) {
+            return "redirect:/mypage";
+        }
+
+        model.addAttribute("dto", dto);
+        model.addAttribute("userName", oauth2User.getAttribute("name"));
+        return "interview"; // interview.html로 이동
+    }
+
+    @PostMapping("/api/interview/init")
+    @ResponseBody
+    public List<String> initInterview(@RequestBody Map<String, String> request) {
+        // 화면에서 넘겨준 persona 값도 같이 전달
+        return geminiService.createInterviewQuestions(
+                request.get("resumeText"),
+                request.get("jdText"),
+                request.get("persona") // [NEW] 추가됨
+        );
+    }
+
+    @PostMapping("/api/interview/feedback")
+    @ResponseBody
+    public String feedbackInterview(@RequestBody Map<String, String> request) {
+        return geminiService.evaluateInterviewAnswer(request.get("question"), request.get("answer"));
+    }
+
+    @PostMapping("/api/interview/chat")
+    @ResponseBody
+    public String chatInterview(@RequestBody Map<String, String> request) {
+        return geminiService.replyToChat(
+                request.get("context"),
+                request.get("message"),
+                request.get("persona")
+        );
+    }
+
     @GetMapping("/login")
     public String login() {
         return "login";
