@@ -104,4 +104,37 @@ public class GeminiService {
             return "죄송합니다. AI 분석 중 오류가 발생했습니다.";
         }
     }
+
+    public String rewriteText(String originalText) {
+        String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;
+
+        // 교정 전용 프롬프트: '에디터' 페르소나 부여
+        String prompt = "당신은 **전문 교열가(Professional Editor)**입니다. 아래 자소서 내용을 다음 기준에 맞춰 수정해 주세요.\n" +
+                "1. **문법 및 맞춤법 교정**: 오타나 비문을 완벽하게 수정하세요.\n" +
+                "2. **가독성 향상**: 문장을 간결하고 명확하게 다듬으세요.\n" +
+                "3. **전문적인 톤앤매너**: 지원자의 강점이 잘 드러나도록 정중하고 신뢰감 있는 어휘를 사용하세요.\n" +
+                "4. **길이 유지**: 원본 내용의 핵심을 유지하되, 지나치게 길어지거나 짧아지지 않게 하세요.\n\n" +
+                "--- [원본 텍스트] ---\n" +
+                originalText + "\n" +
+                "---------------------\n" +
+                "수정된 텍스트만 출력해 주세요. (사족 금지)";
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("contents", List.of(
+                Map.of("parts", List.of(
+                        Map.of("text", prompt)
+                ))
+        ));
+
+        try {
+            Map<String, Object> response = restTemplate.postForObject(url, requestBody, Map.class);
+            List<Map<String, Object>> candidates = (List<Map<String, Object>>) response.get("candidates");
+            Map<String, Object> content = (Map<String, Object>) candidates.get(0).get("content");
+            List<Map<String, Object>> parts = (List<Map<String, Object>>) content.get("parts");
+            return (String) parts.get(0).get("text");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "죄송합니다. 문장 교정 중 오류가 발생했습니다.";
+        }
+    }
 }

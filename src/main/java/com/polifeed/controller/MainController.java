@@ -173,6 +173,15 @@ public class MainController {
         return "redirect:/mypage/" + id;
     }
 
+    @PostMapping("/api/rewrite")
+    @ResponseBody // HTML이 아니라 데이터(String)만 반환
+    public String rewrite(@RequestBody Map<String, String> request) {
+        String originalText = request.get("originalText");
+
+        // 서비스 호출 (글 다듬기)
+        return geminiService.rewriteText(originalText);
+    }
+
     @GetMapping("/login")
     public String login() {
         return "login";
