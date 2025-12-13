@@ -191,6 +191,16 @@ public class GeminiService {
 
         return callGeminiApi(prompt);
     }
+    public String getHeatmapAnalysis(String resumeText) {
+        String prompt = "당신은 냉철한 면접관입니다. 다음 자소서에서 면접관의 시선이 머무는 '중요한 부분'과 대충 넘길 '지루한 부분'을 구분해서 HTML 태그를 입혀주세요.\n" +
+                "1. **HOT (중요)**: 구체적인 성과(숫자), 기술 스택(Java, Spring 등), 직무 관련 경험, 핵심 행동 동사. -> <span class='heat-hot'>...</span> 태그로 감싸세요.\n" +
+                "2. **COOL (지루함)**: 상투적인 표현(열심히, 최선을 다해, 소통하여), 추상적인 형용사, 너무 긴 서론, 일반적인 내용. -> <span class='heat-cool'>...</span> 태그로 감싸세요.\n" +
+                "3. 나머지 평범한 텍스트는 그대로 두세요.\n" +
+                "4. **오직 HTML 태그가 적용된 전체 본문만 출력하세요.** (설명, 마크다운 기호 금지)\n\n" +
+                "[자소서]\n" + resumeText;
+
+        return callGeminiApi(prompt);
+    }
 
     private String callGeminiApi(String prompt) {
         String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" + apiKey;

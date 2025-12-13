@@ -99,18 +99,17 @@
     // 음성 관련 변수
     let ttsEnabled = true;
     let recognition = null;
-    let isRecording = false;
+    let isRecording = false; // 마이크 상태 체크용
 
     document.addEventListener("DOMContentLoaded", function() {
         initSpeechRecognition();
         startInterview();
     });
 
-    // --- [수정됨] 에러 원인을 알려주는 음성 인식 초기화 ---
+    // 1. 음성 인식 초기화
     function initSpeechRecognition() {
-        // 브라우저 지원 여부 확인
         if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            alert("⚠️ 이 브라우저는 음성 인식을 지원하지 않습니다.\n구글 크롬(Chrome) 브라우저를 사용해주세요.");
+            alert("❌ 이 브라우저는 음성 인식을 지원하지 않습니다.\n크롬(Chrome) 브라우저를 사용해주세요.");
             document.getElementById('micBtn').style.display = 'none';
             return;
         }
@@ -121,11 +120,26 @@
         recognition.continuous = false;
         recognition.interimResults = false;
 
-        // [성공 시]
+        // [이벤트] 마이크 켜짐
+        recognition.onstart = function() {
+            console.log("🎤 마이크 켜짐");
+            isRecording = true;
+            updateMicUI(true);
+        };
+
+        // [이벤트] 마이크 꺼짐
+        recognition.onend = function() {
+            console.log("🛑 마이크 꺼짐");
+            isRecording = false;
+            updateMicUI(false);
+        };
+
+        // [이벤트] 결과 수신
         recognition.onresult = function(event) {
             const transcript = event.results[0][0].transcript;
-            const input = document.getElementById('userAnswer');
+            console.log("✅ 인식 결과:", transcript);
 
+            const input = document.getElementById('userAnswer');
             if (input.value.trim().length > 0) {
                 input.value += " " + transcript;
             } else {
@@ -135,68 +149,56 @@
             // 높이 조절
             input.style.height = 'auto';
             input.style.height = (input.scrollHeight) + 'px';
-
-            stopRecording();
         };
 
-        // [에러 발생 시] 경고창 띄우기 (디버깅용)
+        // [이벤트] 에러 발생
         recognition.onerror = function(event) {
-            console.error("음성 인식 에러:", event.error);
+            console.error("🚨 음성 인식 에러:", event.error);
 
-            if (event.error === 'not-allowed') {
-                alert("🚫 마이크 권한이 차단되었습니다.\n주소창 옆 자물쇠(🔒) 또는 마이크 아이콘을 눌러 '허용'해주세요.");
-            } else if (event.error === 'no-speech') {
-                alert("🔇 목소리가 들리지 않습니다. 조금 더 크게 말씀해 주세요.");
-            } else if (event.error === 'network') {
-                alert("⚠️ 네트워크 오류가 발생했습니다. (인터넷 연결 확인)");
-            } else {
-                alert("오류 발생: " + event.error);
+            // "aborted"나 "no-speech"는 흔한 에러라 무시하거나 조용히 처리
+            if (event.error === 'no-speech') {
+                // alert("소리가 들리지 않습니다."); // 너무 자주 뜨면 불편하므로 주석 처리
+            } else if (event.error === 'not-allowed') {
+                alert("🔒 마이크 권한이 차단되었습니다. 권한을 허용해주세요.");
             }
-            stopRecording();
-        };
 
-        recognition.onend = function() {
-            stopRecording();
+            // 에러 나면 강제로 끄기 상태로 전환
+            isRecording = false;
+            updateMicUI(false);
         };
     }
 
+    // 2. 버튼 클릭 시 (토글)
     function toggleRecording() {
-        if (!recognition) {
-            alert("음성 인식을 사용할 수 없는 환경입니다.");
-            return;
-        }
+        if (!recognition) return;
 
-        if (isRecording) {
-            stopRecording();
-        } else {
-            startRecording();
-        }
-    }
-
-    function startRecording() {
-        try {
-            recognition.start();
-            isRecording = true;
-            const micBtn = document.getElementById('micBtn');
-            micBtn.classList.add('recording');
-            document.getElementById('userAnswer').placeholder = "듣고 있습니다... 말씀하세요 👂";
-        } catch (e) {
-            console.error(e);
-            alert("마이크 시작 실패: 이미 사용 중이거나 권한이 없습니다.");
-        }
-    }
-
-    function stopRecording() {
         if (isRecording) {
             recognition.stop();
-            isRecording = false;
-            const micBtn = document.getElementById('micBtn');
-            micBtn.classList.remove('recording');
-            document.getElementById('userAnswer').placeholder = isChatMode ? "궁금한 점을 물어보세요." : "답변을 입력하세요...";
+        } else {
+            // ★ 핵심 수정: try-catch로 감싸서 '이미 켜짐' 에러 무시
+            try {
+                recognition.start();
+            } catch (e) {
+                console.warn("마이크 시작 실패 (이미 켜져있을 수 있음):", e);
+            }
         }
     }
 
-    // --- TTS (말하기) 기능 ---
+    // 3. UI 업데이트 함수 (버튼 빨간색 처리)
+    function updateMicUI(on) {
+        const micBtn = document.getElementById('micBtn');
+        const input = document.getElementById('userAnswer');
+
+        if (on) {
+            micBtn.classList.add('recording');
+            input.placeholder = "듣고 있습니다... 👂";
+        } else {
+            micBtn.classList.remove('recording');
+            input.placeholder = isChatMode ? "궁금한 점을 물어보세요." : "답변을 입력하세요...";
+        }
+    }
+
+    // --- TTS (말하기) ---
     function speakText(text) {
         if (!ttsEnabled || !('speechSynthesis' in window)) return;
         const cleanText = text.replace(/<[^>]*>?/gm, '');
@@ -219,15 +221,14 @@
         }
     }
 
-    // --- 기존 면접 로직 ---
+    // --- 면접 로직 ---
     function handleAction() {
         if (!isChatMode) submitAnswer();
         else submitChat();
     }
 
     async function startInterview() {
-        const introMsg = `안녕하세요! 면접관입니다. 👨‍💼<br>지원자님의 서류(<strong>[[${dto.topic}]]</strong>)를 검토하고 질문을 준비 중입니다...`;
-        addMessage('ai', introMsg);
+        addMessage('ai', `안녕하세요! 면접관입니다. 👨‍💼<br>지원자님의 서류(<strong>[[${dto.topic}]]</strong>)를 검토하고 질문을 준비 중입니다...`);
         speakText("안녕하세요 면접관입니다. 서류를 검토하고 질문을 준비 중입니다.");
 
         const resumeText = document.getElementById('resumeText').value;
@@ -247,7 +248,8 @@
             }
             showCurrentQuestion();
         } catch (e) {
-            alert("서버 연결 오류가 발생했습니다.");
+            console.error(e);
+            alert("서버 연결 오류");
         }
     }
 
@@ -255,7 +257,6 @@
         if (currentQIndex >= questions.length) {
             addMessage('ai', "면접이 모두 끝났습니다. 고생하셨습니다! 🎉");
             speakText("면접이 모두 끝났습니다. 고생하셨습니다.");
-
             document.getElementById('userAnswer').disabled = true;
             document.getElementById('sendBtn').disabled = true;
             document.getElementById('micBtn').disabled = true;
@@ -311,7 +312,7 @@
             chatBox.appendChild(feedbackDiv);
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            speakText("답변에 대한 피드백을 드렸습니다.");
+            speakText("답변에 대한 피드백입니다.");
 
             isChatMode = true;
             lastFeedbackContext = feedback;
@@ -320,10 +321,9 @@
             input.placeholder = "궁금한 점을 물어보세요.";
             input.focus();
             document.getElementById('sendBtn').disabled = false;
-
             document.getElementById('nextBtn').style.display = 'block';
 
-        } catch (e) { alert("평가 중 오류 발생"); }
+        } catch (e) { alert("오류 발생"); }
     }
 
     async function submitChat() {
@@ -372,6 +372,5 @@
         }
     });
 </script>
-
 </body>
 </html>

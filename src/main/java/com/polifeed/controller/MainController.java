@@ -223,6 +223,13 @@ public class MainController {
         );
     }
 
+    @PostMapping("/api/analysis/heatmap")
+    @ResponseBody  // ★ 이게 있어야 화면 이동 안 하고 '텍스트'만 보냅니다!
+    public String analyzeHeatmap(@RequestBody Map<String, String> request) {
+        String text = request.get("text");
+        return geminiService.getHeatmapAnalysis(text);
+    }
+
     @GetMapping("/login")
     public String login() {
         return "login";

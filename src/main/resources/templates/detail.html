@@ -41,6 +41,51 @@
 
         /* 버튼 내 스피너 스타일 */
         .spinner-border-sm { margin-bottom: 2px; }
+
+        .heat-hot {
+        background: linear-gradient(180deg, rgba(255,255,255,0) 50%, #ffe0e3 50%);
+        color: #d63384;
+        font-weight: 800;
+        cursor: help;
+        border-bottom: 2px solid #dc3545;
+    }
+    .heat-hot:hover::after {
+        content: "🔥 면접관이 주목하는 핵심 포인트!";
+        position: absolute;
+        background: #dc3545;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        margin-left: 5px;
+        z-index: 100;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    }
+
+    /* ❄️ COOL: 지루한 부분 */
+    .heat-cool {
+        color: #adb5bd;
+        text-decoration: line-through;
+        text-decoration-color: #dee2e6;
+        opacity: 0.6;
+    }
+    .heat-cool:hover {
+        opacity: 1;
+        color: #6c757d;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .heat-cool:hover::after {
+        content: "❄️ 상투적인 표현입니다. 구체적으로 바꿔보세요.";
+        position: absolute;
+        background: #6c757d;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 5px;
+        font-size: 12px;
+        margin-left: 5px;
+        z-index: 100;
+    }
     </style>
 </head>
 <body class="bg-light">
@@ -105,6 +150,9 @@
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <label class="form-label fw-bold mb-0">📝 답변 내용</label>
                             <div class="d-flex align-items-center gap-2">
+                                <button type="button" id="heatmapBtn" onclick="toggleHeatmap()" class="btn btn-sm btn-outline-danger fw-bold">
+                                    👁️ 시선 추적
+                                </button>
                                 <button type="button" id="undoBtn" onclick="undoRewrite()" class="btn btn-sm btn-outline-danger fw-bold" style="display: none;">
                                     ↩️ 원본 복구
                                 </button>
@@ -310,6 +358,61 @@
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
+    }
+
+    async function toggleHeatmap() {
+        const btn = document.getElementById('heatmapBtn');
+        const textArea = document.getElementById('resumeText');
+        const heatmapDiv = document.getElementById('heatmapContainer');
+        const textContent = textArea.value; // 현재 입력된 텍스트
+
+        // 1. 켜져 있으면 -> 끄기 (다시 에디터 모드)
+        if (heatmapDiv.style.display === 'block') {
+            heatmapDiv.style.display = 'none';
+            textArea.style.display = 'block';
+
+            btn.classList.remove('active', 'btn-danger');
+            btn.classList.add('btn-outline-danger');
+            btn.innerText = "👁️ 시선 추적";
+            return;
+        }
+
+        // 2. 내용이 없으면 경고
+        if (!textContent.trim()) {
+            alert("분석할 내용이 없습니다.");
+            return;
+        }
+
+        // 3. 분석 요청 (AJAX)
+        btn.disabled = true;
+        btn.innerText = "⏳ 분석 중...";
+
+        try {
+            // 컨트롤러에 요청 보내기 (MainController에 만든 /api/analysis/heatmap)
+            const response = await fetch('/api/analysis/heatmap', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ text: textContent })
+            });
+
+            if (!response.ok) throw new Error("서버 오류");
+
+            const html = await response.text();
+            heatmapDiv.innerHTML = html; // 결과 HTML 넣기
+
+            // 화면 전환 (에디터 숨기고 히트맵 보여주기)
+            textArea.style.display = 'none';
+            heatmapDiv.style.display = 'block';
+
+            btn.classList.remove('btn-outline-danger');
+            btn.classList.add('active', 'btn-danger');
+            btn.innerText = "📝 편집 모드로 복귀";
+
+        } catch (e) {
+            alert("분석 중 오류가 발생했습니다.");
+        } finally {
+            btn.disabled = false;
+        }
     }
 </script>
 
