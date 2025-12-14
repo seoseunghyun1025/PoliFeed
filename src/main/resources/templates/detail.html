@@ -160,13 +160,36 @@
 
                         <div class="mb-3">
                             <label class="form-label fw-bold">🚦 지원 상태 변경</label>
-                            <select name="jobStatus" class="form-select" id="statusSelect">
-                                <option value="DRAFT" th:selected="${dto.status == 'DRAFT'}">📝 작성 중</option>
-                                <option value="APPLIED" th:selected="${dto.status == 'APPLIED'}">🚀 지원 완료</option>
-                                <option value="DOC_PASS" th:selected="${dto.status == 'DOC_PASS'}">🎉 서류 합격</option>
-                                <option value="INTERVIEW" th:selected="${dto.status == 'INTERVIEW'}">💬 면접 진행 중</option>
-                                <option value="FINAL_PASS" th:selected="${dto.status == 'FINAL_PASS'}">👑 최종 합격</option>
-                                <option value="REJECTED" th:selected="${dto.status == 'REJECTED'}">💧 불합격</option>
+                            <select name="status" class="form-select" id="statusSelect">
+                                <option value="PREPARE"
+                                        th:selected="${dto.status == null or dto.status.name() == 'PREPARE'}">
+                                    📝 작성 중
+                                </option>
+
+                                <option value="APPLIED"
+                                        th:selected="${dto.status != null and dto.status.name() == 'APPLIED'}">
+                                    🚀 지원 완료
+                                </option>
+
+                                <option value="DOC_PASS"
+                                        th:selected="${dto.status != null and dto.status.name() == 'DOC_PASS'}">
+                                    🎉 서류 합격
+                                </option>
+
+                                <option value="INTERVIEW"
+                                        th:selected="${dto.status != null and dto.status.name() == 'INTERVIEW'}">
+                                    💬 면접 진행 중
+                                </option>
+
+                                <option value="FINAL_PASS"
+                                        th:selected="${dto.status != null and dto.status.name() == 'FINAL_PASS'}">
+                                    👑 최종 합격
+                                </option>
+
+                                <option value="REJECTED"
+                                        th:selected="${dto.status != null and dto.status.name() == 'REJECTED'}">
+                                    💧 불합격
+                                </option>
                             </select>
                         </div>
 

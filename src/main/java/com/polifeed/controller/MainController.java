@@ -125,6 +125,7 @@ public class MainController {
                                 @RequestParam("resumeText") String text,
                                 @RequestParam("persona") String persona,
                                 @RequestParam(value = "jdText", required = false) String jdText,
+                                @RequestParam(value = "status", required = false) String status,
                                 @AuthenticationPrincipal OAuth2User oauth2User,
                                 Model model) {
 
@@ -166,11 +167,19 @@ public class MainController {
         dto.setScoreCreativity(scores.getOrDefault("creativity", 0));
         dto.setScoreReadability(scores.getOrDefault("readability", 0));
 
+        if (status != null && !status.isEmpty()) {
+            try {
+                dto.setStatus(JobStatus.valueOf(status));
+            } catch (IllegalArgumentException e) {
+                // 에러 나면 기본값 유지
+            }
+        }
+
         // [NEW] DB 업데이트 (서비스 호출)
         feedbackService.updateFeedback(dto);
 
         // URL은 /detail/{id} 또는 /mypage/{id} 중 사용하는 걸로 리다이렉트
-        return "redirect:/detail/" + id;
+        return "redirect:/mypage/" + id;
     }
 
     @PostMapping("/api/rewrite")
