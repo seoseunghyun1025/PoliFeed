@@ -7,6 +7,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 
     <style>
         textarea { resize: none; }
@@ -73,6 +74,18 @@
                                     <option value="consultant">👨‍🏫 정석 취업 컨설턴트 (보통맛)</option>
                                 </select>
                                 <div class="form-text">선택한 성향에 따라 AI의 피드백 말투와 관점이 달라집니다.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold">🚦 지원 상태 선택</label>
+                                <select name="status" class="form-select" id="statusSelect">
+                                    <option value="DRAFT" th:selected="${dto == null or (dto.status != null and dto.status.name() == 'DRAFT')}">📝 작성 중 (기본)</option>
+                                    <option value="APPLIED" th:selected="${dto != null and dto.status != null and dto.status.name() == 'APPLIED'}">🚀 지원 완료</option>
+                                    <option value="DOC_PASS" th:selected="${dto != null and dto.status != null and dto.status.name() == 'DOC_PASS'}">🎉 서류 합격</option>
+                                    <option value="INTERVIEW" th:selected="${dto != null and dto.status != null and dto.status.name() == 'INTERVIEW'}">💬 면접 진행 중</option>
+                                    <option value="FINAL_PASS" th:selected="${dto != null and dto.status != null and dto.status.name() == 'FINAL_PASS'}">👑 최종 합격</option>
+                                    <option value="REJECTED" th:selected="${dto != null and dto.status != null and dto.status.name() == 'REJECTED'}">💧 불합격</option>
+                                </select>
                             </div>
 
                             <div class="mb-3">
@@ -235,6 +248,66 @@
         document.body.appendChild(element);
         element.click();
         document.body.removeChild(element);
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const statusSelect = document.getElementById('statusSelect');
+
+        // 셀렉트 박스가 존재할 때만 실행
+        if (statusSelect) {
+            statusSelect.addEventListener('change', function(e) {
+                const selectedValue = e.target.value;
+
+                if (selectedValue === 'DOC_PASS') {
+                    // 🎉 서류 합격: 기분 좋은 기본 폭죽
+                    triggerDocPassConfetti();
+                } else if (selectedValue === 'FINAL_PASS') {
+                    // 👑 최종 합격: 더 화려하고 긴 골드 폭죽
+                    triggerFinalPassConfetti();
+                }
+            });
+        }
+    });
+
+    // 서류 합격용 폭죽 (한 번 팡!)
+    function triggerDocPassConfetti() {
+        confetti({
+            particleCount: 150, // 종이 조각 개수
+            spread: 80,         // 퍼지는 범위
+            origin: { y: 0.6 }, // 발사 위치 (화면 중간 약간 아래)
+            colors: ['#28a745', '#ffffff', '#ffc107'] // 초록, 흰색, 노랑 조합
+        });
+    }
+
+    // 최종 합격용 폭죽 (양쪽에서 화려하게 연사)
+    function triggerFinalPassConfetti() {
+        var duration = 2 * 1000; // 2초 동안 지속
+        var animationEnd = Date.now() + duration;
+        var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+        function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+
+        var interval = setInterval(function() {
+            var timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+                return clearInterval(interval);
+            }
+
+            var particleCount = 50 * (timeLeft / duration);
+
+            // 양쪽 구석에서 발사! (골드 색상 위주)
+            confetti(Object.assign({}, defaults, {
+                particleCount,
+                origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+                colors: ['#FFD700', '#FFA500', '#ffffff'] // 골드, 오렌지, 화이트
+            }));
+            confetti(Object.assign({}, defaults, {
+                particleCount,
+                origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+                colors: ['#FFD700', '#FFA500', '#ffffff']
+            }));
+        }, 250);
     }
 </script>
 

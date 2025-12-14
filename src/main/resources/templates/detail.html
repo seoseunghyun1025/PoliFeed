@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@3.0.6/dist/purify.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 
     <style>
         textarea { resize: none; }
@@ -42,50 +43,72 @@
         /* 버튼 내 스피너 스타일 */
         .spinner-border-sm { margin-bottom: 2px; }
 
+        /* 히트맵 스타일 */
         .heat-hot {
-        background: linear-gradient(180deg, rgba(255,255,255,0) 50%, #ffe0e3 50%);
-        color: #d63384;
-        font-weight: 800;
-        cursor: help;
-        border-bottom: 2px solid #dc3545;
-    }
-    .heat-hot:hover::after {
-        content: "🔥 면접관이 주목하는 핵심 포인트!";
-        position: absolute;
-        background: #dc3545;
-        color: white;
-        padding: 5px 10px;
-        border-radius: 5px;
-        font-size: 12px;
-        margin-left: 5px;
-        z-index: 100;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-    }
+            background: linear-gradient(180deg, rgba(255,255,255,0) 50%, #ffe0e3 50%);
+            color: #d63384;
+            font-weight: 800;
+            cursor: help;
+            border-bottom: 2px solid #dc3545;
+            position: relative; /* 툴팁 위치 기준 */
+        }
+        .heat-hot:hover::after {
+            content: "🔥 면접관이 주목하는 핵심 포인트!";
+            position: absolute;
+            bottom: 100%; /* 위쪽 표시 */
+            left: 50%;
+            transform: translateX(-50%);
+            background: #dc3545;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 100;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+        }
 
-    /* ❄️ COOL: 지루한 부분 */
-    .heat-cool {
-        color: #adb5bd;
-        text-decoration: line-through;
-        text-decoration-color: #dee2e6;
-        opacity: 0.6;
-    }
-    .heat-cool:hover {
-        opacity: 1;
-        color: #6c757d;
-        text-decoration: none;
-        cursor: pointer;
-    }
-    .heat-cool:hover::after {
-        content: "❄️ 상투적인 표현입니다. 구체적으로 바꿔보세요.";
-        position: absolute;
-        background: #6c757d;
-        color: white;
-        padding: 5px 10px;
-        border-radius: 5px;
-        font-size: 12px;
-        margin-left: 5px;
-        z-index: 100;
-    }
+        /* ❄️ COOL: 지루한 부분 */
+        .heat-cool {
+            color: #adb5bd;
+            text-decoration: line-through;
+            text-decoration-color: #dee2e6;
+            opacity: 0.6;
+            cursor: pointer;
+            position: relative;
+        }
+        .heat-cool:hover {
+            opacity: 1;
+            color: #6c757d;
+            text-decoration: none;
+        }
+        .heat-cool:hover::after {
+            content: "❄️ 상투적인 표현입니다. 구체적으로 바꿔보세요.";
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #6c757d;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            white-space: nowrap;
+            z-index: 100;
+        }
+
+        /* 히트맵 컨테이너 스타일 (Textarea 대체용) */
+        #heatmapContainer {
+            min-height: 380px; /* rows="15"와 비슷하게 높이 설정 */
+            padding: 0.75rem;
+            font-size: 1rem;
+            line-height: 1.5;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            background-color: #fff;
+            overflow-y: auto;
+            white-space: pre-wrap; /* 줄바꿈 유지 */
+        }
     </style>
 </head>
 <body class="bg-light">
@@ -136,6 +159,18 @@
                         </div>
 
                         <div class="mb-3">
+                            <label class="form-label fw-bold">🚦 지원 상태 변경</label>
+                            <select name="jobStatus" class="form-select" id="statusSelect">
+                                <option value="DRAFT" th:selected="${dto.status == 'DRAFT'}">📝 작성 중</option>
+                                <option value="APPLIED" th:selected="${dto.status == 'APPLIED'}">🚀 지원 완료</option>
+                                <option value="DOC_PASS" th:selected="${dto.status == 'DOC_PASS'}">🎉 서류 합격</option>
+                                <option value="INTERVIEW" th:selected="${dto.status == 'INTERVIEW'}">💬 면접 진행 중</option>
+                                <option value="FINAL_PASS" th:selected="${dto.status == 'FINAL_PASS'}">👑 최종 합격</option>
+                                <option value="REJECTED" th:selected="${dto.status == 'REJECTED'}">💧 불합격</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
                             <label class="form-label fw-bold">🏢 채용 공고 (선택 사항)</label>
                             <textarea name="jdText" class="form-control" rows="4"
                                       placeholder="채용 공고 내용 입력" th:text="${dto.jdText}"></textarea>
@@ -165,6 +200,8 @@
 
                         <textarea id="resumeText" name="resumeText" class="form-control mb-3" rows="15"
                                   th:text="${dto.originalText}"></textarea>
+
+                        <div id="heatmapContainer" style="display: none;"></div>
 
                         <button type="submit" id="submitBtn" class="btn btn-warning w-100 fw-bold">
                             수정하고 다시 피드백 받기 🔄
@@ -224,16 +261,19 @@
 <script>
     let originalBackup = "";
 
+    // 페이지 로드 시 차트 렌더링 및 마크다운 변환
     document.addEventListener("DOMContentLoaded", function() {
         const rawText = document.getElementById('raw-markdown').value;
         const displayArea = document.getElementById('feedback-display');
 
         if (rawText && displayArea) {
+            // 마크다운 -> HTML 변환 (DOMPurify로 XSS 방지)
             displayArea.innerHTML = DOMPurify.sanitize(marked.parse(rawText));
         }
         renderChart();
     });
 
+    // Chart.js 렌더링 함수
     function renderChart() {
         const ctx = document.getElementById('scoreChart');
         if (!ctx) return;
@@ -276,7 +316,7 @@
         });
     }
 
-    // AI 문장 다듬기
+    // AI 문장 다듬기 요청
     async function magicRewrite() {
         const textArea = document.getElementById('resumeText');
         const currentText = textArea.value;
@@ -296,6 +336,7 @@
         const btnText = document.getElementById('btnText');
         const btnSpinner = document.getElementById('btnSpinner');
 
+        // 버튼 로딩 상태 전환
         btn.disabled = true;
         btnText.textContent = " 교정 중...";
         btnSpinner.style.display = "inline-block";
@@ -312,6 +353,7 @@
                 const rewrittenText = await response.text();
                 textArea.value = rewrittenText;
 
+                // 시각적 피드백 (배경색 깜빡임)
                 textArea.style.transition = "background-color 0.3s";
                 textArea.style.backgroundColor = "#d1e7dd";
                 setTimeout(() => textArea.style.backgroundColor = "white", 800);
@@ -324,6 +366,7 @@
             console.error(error);
             alert("요청 중 에러가 발생했습니다.");
         } finally {
+            // 버튼 상태 복구
             btn.disabled = false;
             btnText.textContent = "🪄 AI 문장 다듬기";
             btnSpinner.style.display = "none";
@@ -331,7 +374,7 @@
         }
     }
 
-    // 원본 복구
+    // 원본 복구 함수
     function undoRewrite() {
         const textArea = document.getElementById('resumeText');
         if (confirm("수정 전 원본 내용으로 되돌리시겠습니까?")) {
@@ -343,11 +386,13 @@
         }
     }
 
+    // 로딩 화면 표시
     function showLoading() {
         document.getElementById('result-container').style.display = 'none';
         document.getElementById('loading-spinner').style.display = 'block';
     }
 
+    // 피드백 다운로드
     function downloadFeedback() {
         const content = document.getElementById('raw-markdown').value;
         if (!content) { alert("다운로드할 내용이 없습니다."); return; }
@@ -360,13 +405,21 @@
         document.body.removeChild(element);
     }
 
+    // 히트맵 토글 (시선 추적)
     async function toggleHeatmap() {
         const btn = document.getElementById('heatmapBtn');
         const textArea = document.getElementById('resumeText');
-        const heatmapDiv = document.getElementById('heatmapContainer');
-        const textContent = textArea.value; // 현재 입력된 텍스트
+        const heatmapDiv = document.getElementById('heatmapContainer'); // 필수 요소
 
-        // 1. 켜져 있으면 -> 끄기 (다시 에디터 모드)
+        // 방어 코드: 요소가 없으면 에러 방지
+        if (!heatmapDiv) {
+            console.error("heatmapContainer를 찾을 수 없습니다.");
+            return;
+        }
+
+        const textContent = textArea.value;
+
+        // 1. 이미 켜져 있으면 -> 끄기 (에디터 모드 복귀)
         if (heatmapDiv.style.display === 'block') {
             heatmapDiv.style.display = 'none';
             textArea.style.display = 'block';
@@ -377,18 +430,18 @@
             return;
         }
 
-        // 2. 내용이 없으면 경고
+        // 2. 내용 확인
         if (!textContent.trim()) {
             alert("분석할 내용이 없습니다.");
             return;
         }
 
-        // 3. 분석 요청 (AJAX)
+        // 3. 분석 요청
         btn.disabled = true;
         btn.innerText = "⏳ 분석 중...";
 
         try {
-            // 컨트롤러에 요청 보내기 (MainController에 만든 /api/analysis/heatmap)
+            // 백엔드 API 호출
             const response = await fetch('/api/analysis/heatmap', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
@@ -398,9 +451,9 @@
             if (!response.ok) throw new Error("서버 오류");
 
             const html = await response.text();
-            heatmapDiv.innerHTML = html; // 결과 HTML 넣기
+            heatmapDiv.innerHTML = html;
 
-            // 화면 전환 (에디터 숨기고 히트맵 보여주기)
+            // 화면 전환
             textArea.style.display = 'none';
             heatmapDiv.style.display = 'block';
 
@@ -409,10 +462,70 @@
             btn.innerText = "📝 편집 모드로 복귀";
 
         } catch (e) {
-            alert("분석 중 오류가 발생했습니다.");
+            console.error(e);
+            alert("히트맵 분석 중 오류가 발생했습니다.");
         } finally {
             btn.disabled = false;
         }
+    }
+    document.addEventListener("DOMContentLoaded", function() {
+        const statusSelect = document.getElementById('statusSelect');
+
+        // 셀렉트 박스가 존재할 때만 실행
+        if (statusSelect) {
+            statusSelect.addEventListener('change', function(e) {
+                const selectedValue = e.target.value;
+
+                if (selectedValue === 'DOC_PASS') {
+                    // 🎉 서류 합격: 기분 좋은 기본 폭죽
+                    triggerDocPassConfetti();
+                } else if (selectedValue === 'FINAL_PASS') {
+                    // 👑 최종 합격: 더 화려하고 긴 골드 폭죽
+                    triggerFinalPassConfetti();
+                }
+            });
+        }
+    });
+
+    // 서류 합격용 폭죽 (한 번 팡!)
+    function triggerDocPassConfetti() {
+        confetti({
+            particleCount: 150, // 종이 조각 개수
+            spread: 80,         // 퍼지는 범위
+            origin: { y: 0.6 }, // 발사 위치 (화면 중간 약간 아래)
+            colors: ['#28a745', '#ffffff', '#ffc107'] // 초록, 흰색, 노랑 조합
+        });
+    }
+
+    // 최종 합격용 폭죽 (양쪽에서 화려하게 연사)
+    function triggerFinalPassConfetti() {
+        var duration = 2 * 1000; // 2초 동안 지속
+        var animationEnd = Date.now() + duration;
+        var defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
+
+        function randomInRange(min, max) { return Math.random() * (max - min) + min; }
+
+        var interval = setInterval(function() {
+            var timeLeft = animationEnd - Date.now();
+
+            if (timeLeft <= 0) {
+                return clearInterval(interval);
+            }
+
+            var particleCount = 50 * (timeLeft / duration);
+
+            // 양쪽 구석에서 발사! (골드 색상 위주)
+            confetti(Object.assign({}, defaults, {
+                particleCount,
+                origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+                colors: ['#FFD700', '#FFA500', '#ffffff'] // 골드, 오렌지, 화이트
+            }));
+            confetti(Object.assign({}, defaults, {
+                particleCount,
+                origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+                colors: ['#FFD700', '#FFA500', '#ffffff']
+            }));
+        }, 250);
     }
 </script>
 

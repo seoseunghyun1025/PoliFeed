@@ -4,6 +4,20 @@
     <meta charset="UTF-8">
     <title>마이페이지</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .hover-shadow:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+            transition: all 0.3s ease;
+        }
+        .list-item-container {
+            transition: all 0.3s ease;
+            border-left: 5px solid transparent;
+        }
+        .list-item-container:hover {
+            border-left: 5px solid #ffc107; /* 호버 시 노란색 라인 포인트 */
+        }
+    </style>
 </head>
 <body class="bg-light">
 
@@ -24,30 +38,66 @@
         </div>
     </div>
 </nav>
+
 <div class="container">
     <div class="row justify-content-center">
-        <div class="col-md-8">
+        <div class="col-md-9">
             <h2 class="mb-4 fw-bold">📂 내 포트폴리오 보관함</h2>
 
-            <div class="list-group shadow-sm">
-                <a th:each="item : ${list}"
-                   th:href="@{/mypage/{id}(id=${item.id})}"
-                   class="list-group-item list-group-item-action p-4" aria-current="true">
+            <div class="list-group">
+                <div th:each="item : ${list}" class="list-group-item list-group-item-action p-4 mb-3 rounded shadow-sm list-item-container bg-white border-0">
 
-                    <div class="d-flex w-100 justify-content-between mb-2">
-                        <h5 class="mb-1 fw-bold text-primary" th:text="${item.topic ?: '주제 없음'}">주제</h5>
+                    <div class="d-flex w-100 justify-content-between align-items-center mb-2">
+                        <div class="d-flex align-items-center gap-2">
+
+                            <span th:if="${item.status == null or (item.status != null and item.status.name() == 'DRAFT')}"
+                                  class="badge bg-secondary bg-opacity-75">📝 작성 중</span>
+
+                            <th:block th:if="${item.status != null}">
+                                <span th:if="${item.status.name() == 'APPLIED'}" class="badge bg-primary bg-opacity-75">🚀 지원 완료</span>
+                                <span th:if="${item.status.name() == 'DOC_PASS'}" class="badge bg-success">🎉 서류 합격</span>
+                                <span th:if="${item.status.name() == 'INTERVIEW'}" class="badge bg-warning text-dark">💬 면접 중</span>
+                                <span th:if="${item.status.name() == 'FINAL_PASS'}" class="badge bg-warning text-dark border border-dark">👑 최종 합격</span>
+                                <span th:if="${item.status.name() == 'REJECTED'}" class="badge bg-danger bg-opacity-75">💧 불합격</span>
+                            </th:block>
+                            <span th:switch="${item.persona}">
+                                <span th:case="'strict'" class="badge bg-danger rounded-pill">🔥 깐깐한 팀장</span>
+                                <span th:case="'friendly'" class="badge bg-success rounded-pill">🍀 친절한 CTO</span>
+                                <span th:case="'consultant'" class="badge bg-primary rounded-pill">👨‍🏫 컨설턴트</span>
+                                <span th:case="*" class="badge bg-secondary rounded-pill">🤖 AI 멘토</span>
+                            </span>
+
+                            <a th:href="@{/mypage/{id}(id=${item.id})}" class="text-decoration-none text-dark">
+                                <h5 class="mb-0 fw-bold hover-underline" th:text="${item.topic ?: '주제 없음'}">주제</h5>
+                            </a>
+                        </div>
+
                         <small class="text-muted" th:text="${#temporals.format(item.createdAt, 'yyyy-MM-dd HH:mm')}">날짜</small>
                     </div>
 
-                    <p class="mb-1 text-secondary"
-                       th:text="${item.originalText != null} ? ${#strings.abbreviate(item.originalText, 100)} : '내용 없음'">
+                    <p class="mb-3 text-secondary text-truncate" style="max-width: 90%;"
+                       th:text="${item.originalText}">
                         내용 미리보기...
                     </p>
-                </a>
 
-                <div th:if="${#lists.isEmpty(list)}" class="text-center p-5 bg-white">
-                    <p class="text-muted">아직 작성된 피드백이 없습니다.</p>
-                    <a href="/" class="btn btn-primary">첫 번째 피드백 받으러 가기 🚀</a>
+                    <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-2">
+                        <a th:href="@{/mypage/{id}(id=${item.id})}" class="btn btn-sm btn-outline-primary fw-bold">
+                            📊 상세 결과 보기
+                        </a>
+
+                        <form th:action="@{/mypage/delete/{id}(id=${item.id})}" method="post"
+                              onsubmit="return confirm('정말 삭제하시겠습니까?\n삭제된 데이터는 복구할 수 없습니다.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                🗑️ 삭제
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+
+                <div th:if="${#lists.isEmpty(list)}" class="text-center p-5 bg-white rounded shadow-sm">
+                    <p class="text-muted fs-5">아직 작성된 피드백이 없습니다. 😅</p>
+                    <a href="/" class="btn btn-warning fw-bold text-dark mt-2">첫 번째 피드백 받으러 가기 🚀</a>
                 </div>
             </div>
 

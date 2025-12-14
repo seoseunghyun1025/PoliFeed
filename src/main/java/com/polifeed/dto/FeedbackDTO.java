@@ -1,5 +1,6 @@
 package com.polifeed.dto;
 
+import com.polifeed.entity.JobStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,4 +26,6 @@ public class FeedbackDTO {
     private int scoreSincerity;  // 성실성
     private int scoreCreativity; // 창의성
     private int scoreReadability;// 가독성
+
+    private JobStatus status;
 }
