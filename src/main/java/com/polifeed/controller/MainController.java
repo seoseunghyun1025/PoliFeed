@@ -239,6 +239,12 @@ public class MainController {
         return geminiService.getHeatmapAnalysis(text);
     }
 
+    @PostMapping("/mypage/delete/{id}") // DELETE 대신 POST를 사용하여 폼 전송에 대응
+    public String deleteFeedback(@PathVariable Long id) {
+        feedbackService.deleteFeedback(id);
+        return "redirect:/mypage";
+    }
+
     @GetMapping("/login")
     public String login() {
         return "login";

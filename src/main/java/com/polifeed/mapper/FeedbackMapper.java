@@ -44,4 +44,7 @@ public interface FeedbackMapper {
     // [수정됨 3] ★ 여기가 핵심! 어노테이션 추가
     @Update("UPDATE feedback_log SET status = #{status} WHERE id = #{id}")
     void updateStatus(@Param("id") Long id, @Param("status") JobStatus status);
+
+    @Delete("DELETE FROM feedback_log WHERE id = #{id}")
+    void deleteFeedback(Long id);
 }

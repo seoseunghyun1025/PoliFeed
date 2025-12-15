@@ -43,4 +43,9 @@ public class FeedbackService {
     public void updateStatus(Long id, JobStatus status) {
         feedbackMapper.updateStatus(id, status);
     }
+
+    @Transactional
+    public void deleteFeedback(Long id) {
+        feedbackMapper.deleteFeedback(id);
+    }
 }
