@@ -1,1 +1,1 @@
-![Uploading fd2ed220-a15a-438c-a746-c6051383595b.png…]()
+![토이프로젝트 대표 이미지](image/PoliFeed.png)
