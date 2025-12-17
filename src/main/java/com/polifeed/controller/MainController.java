@@ -2,7 +2,6 @@ package com.polifeed.controller;
 
 import com.polifeed.dto.FeedbackDTO;
 import com.polifeed.entity.JobStatus;
-import com.polifeed.mapper.FeedbackMapper;
 import com.polifeed.service.FeedbackService;
 import com.polifeed.service.GeminiService;
 import lombok.RequiredArgsConstructor;

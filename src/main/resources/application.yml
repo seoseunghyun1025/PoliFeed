@@ -16,6 +16,10 @@ spring:
             scope:
               - email
               - profile
+            redirect-uri: https://imperturbable-skeptically-shondra.ngrok-free.dev/login/oauth2/code/google
+openapi:
+  api-key: ${GPT_API_KEY}
+  model: "gpt-4o-mini"
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
